@@ -1,0 +1,5 @@
+---
+- include: setup.yml
+- include: config.yml
+- include: security.yml
+- include: daemon.yml

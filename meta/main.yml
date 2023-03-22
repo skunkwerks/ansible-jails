@@ -1,0 +1,15 @@
+galaxy_info:
+  author: Dave Cottlehuber
+  company: SkunkWerks, GmbH
+  description: template
+  license: BSD-2-Clause
+  issue_tracker_url: https://git.sr.ht/~dch/ansible-template
+  min_ansible_version: 2.0
+  platforms:
+    - name: FreeBSD
+      versions:
+        - all
+  galaxy_tags:
+    - freebsd
+    - template
+dependencies: []
