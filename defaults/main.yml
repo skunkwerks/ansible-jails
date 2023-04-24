@@ -1,6 +1,45 @@
 ---
 # defaults
 # mandatory
-# mandatory and must be set by user
+jails_zpool:      'zroot'
+jails_mount:      '/jails'
+
 # optional
+# per-host /etc/jail.conf file
+jails_jail_conf:      'templates/jail.conf.j2.default'
+# per-instance /etc/jail.conf.d/INSTANCE.conf
+jails_instance_conf:  'templates/instance.conf.j2.default'
+# most people will pick their own
+jails_resolv_conf:    'nameserver 9.9.9.9'
+
+# actually only the final URL parameter needs to be set
+jails_site:       'https://download.freebsd.org/ftp/releases'
+jails_arch:       '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
+jails_machine:    '{{ ansible_machine }}'
+jails_target:     '{{ ansible_distribution_release }}'
+jails_tarball:    'base.txz'
+
+# only this one is actually required for provisioning
+# https://download.freebsd.org/ftp/releases/arm64/aarch64/13.2-RELEASE/
+jails_url:        '{{ [jails_site, jails_machine, jails_arch, jails_target, jails_tarball] | join("/") }}'
+
+# an ansible role to be applied to the templated jail prior to final snapshot
+# jails_template_role: 'my_template_role'
+
+# package repo settings if you have a custom repo
+jails_repo:       'FreeBSD'
+# jails ABI used only to inject python3 and other packages into template
+jails_abi:        '{{ "FreeBSD:" ~
+                      ansible_distribution_major_version
+                      ~ ":" ~
+                  ("aarch64" if ansible_machine == "arm64" else ansible_machine)
+                   }}'
+# list of default packages to install
+jails_default_packages:
+- lang/python3
+- ports-mgmt/pkg
+
+# a list of jails to create, or just a variable from inventory or vars
+# by default only the templates will be prepared
+jails_list:       []
 

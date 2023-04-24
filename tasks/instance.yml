@@ -1,0 +1,137 @@
+---
+- name: set instance facts
+  set_fact:
+    # helper for subsequent facts
+    instance_path: '{{ "/instances/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/" ~ instance.name }}'
+    # zfs origin template for clone
+    jails_template: '{{ jails_zpool ~ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") }}'
+  tags: jails, facts
+
+- name: set instance facts
+  set_fact:
+    # per-instance
+    instance_zfs: '{{ jails_zpool ~ jails_mount ~ instance_path }}'
+    instance_dir: '{{ jails_mount ~ instance_path }}'
+    instance_etc: '{{ jails_mount ~ instance_path ~ "/etc" }}'
+    instance_facts: '{{ jails_mount ~ instance_path ~ "/usr/local/etc/ansible/facts.d" }}'
+    instance_name: '{{ instance.name ~ "@" ~ ansible_ssh_host }}'
+    instance_hostname: '{{ instance.hostname | default(instance.name) }}'
+    instance_packages: '{{ instance.packages | default([]) | join(" ") }}'
+    instance_daemons: '{{ instance.daemons | default([]) }}'
+    # trim leading interface name if present, and drop any trailing subnet
+    instance_ip4: '{{ instance.ip4_addr | default("127.0.0.1") |
+      regex_replace("^.+\|", "") | ansible.utils.ipv4("address") }}'
+    instance_ip6: '{{ instance.ip6_addr |     default("::1") |
+      regex_replace("^.+\|", "") | ansible.utils.ipv6("address") }}'
+    # to be templated out by either role or custom template
+    instance_cfg: '/etc/jail.conf.d/{{ instance.name }}.conf'
+  tags: jails, facts
+
+- name: clone per-instance zfs dataset
+  community.general.zfs:
+    name: '{{ instance_zfs }}'
+    origin: '{{ instance.template | default(jails_template ~ "@ready") }}'
+    state: present
+    extra_zfs_properties:
+      readonly: off
+  tags: jails, zfs
+
+- name: set hostname in rc.conf
+  lineinfile:
+    path: '{{ instance_etc }}/rc.conf'
+    line: 'hostname={{ instance_hostname }}'
+    regexp: '^hostname='
+  tags: jails, hostname
+
+- name: set resolv.conf
+  copy:
+    content: "{{ jails_resolv_conf }}"
+    dest: "{{ instance_etc }}/resolv.conf"
+    mode: 0644
+    owner: root
+    group: wheel
+  tags: jails, resolv
+
+- name: enable any user-requested daemons
+  lineinfile:
+    dest: '{{ instance_etc }}/rc.conf'
+    line: '{{ item }}_enable=YES'
+    regexp: '^{{ item }}_enable='
+  loop: '{{ instance_daemons }}'
+  when: instance.daemons is defined
+  tags: jails, template, services
+
+- name: install instance packages
+  ansible.builtin.command:
+    cmd: >
+      /usr/bin/env REPO_DIR=/tmp/repo ASSUME_ALWAYS_YES=yes
+        /usr/local/sbin/pkg
+          -o ABI={{ template_abi }}
+          --rootdir {{ instance_dir }}
+          install -r {{ jails_repo }}
+          -y {{ instance_packages }}
+  when: instance.packages is defined
+  no_log: true
+  tags: jails, template, python, packages
+
+
+- name: create per-instance jail.conf
+  template:
+    src: '{{ instance.jail_conf | default(jails_instance_conf) }}'
+    dest: '{{ instance_cfg }}'
+    mode: 0440
+  tags: jails, daemon
+
+- name: start jail {{ instance.name }}
+  ansible.builtin.command:
+    cmd: >
+      service jail start {{ instance.name }}
+  tags: jails, template, start
+
+- name: add jail to inventory
+  ansible.builtin.add_host:
+    name: '{{ instance_name }}'
+    hostname: '{{ instance_hostname }}'
+    groups: '{{ instance.groups | default([]) }}'
+    ansible_connection: 'sshjail'
+    ansible_ssh_port: '{{ansible_ssh_port}}'
+    ansible_python_interpreter: '/usr/local/bin/python3'
+
+- name: add convenience softlink to jail
+  file:
+    src: '{{ instance_dir }}'
+    dest: '/jails/tags/{{ instance.name }}'
+    state: link
+    force: true
+
+- name: inject instance facts
+  copy:
+    content: |
+     {{ lookup('template', 'instance.facts.j2') | from_yaml | to_nice_json }}
+    dest: '{{ instance_facts }}/instance_{{ instance.name }}.fact'
+    mode: 0644
+    owner: root
+    group: wheel
+  tags: jails, instance, facts
+
+- name: run inventory with root & python
+  ansible.builtin.setup:
+    fact_path: '{{ instance_facts }}'
+  delegate_to: '{{ instance_name }}'
+  delegate_facts: true
+  tags: inventory
+
+- name: dump custom facts from inventory
+  debug:
+    var: ansible_local
+    verbosity: 2
+  delegate_to: '{{ instance_name }}'
+  delegate_facts: true
+  tags: debug, inventory
+
+- name: run final snapshot
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ instance_zfs }}@ready
+    creates: '{{ instance_dir }}/.zfs/snapshot/ready'
+  tags: instance, template, zfs

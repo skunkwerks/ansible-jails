@@ -1,2 +1,120 @@
 ---
+- name: set role facts
+  set_fact:
+    cacheable: yes
+    # datasets
+    jails_ds:       "{{ jails_zpool ~ jails_mount }}" # main dataset
+    jails_dss:      "{{ jails_zpool ~ jails_mount }}/" # a convenient trailing slash
+    jails_download: "{{ jails_zpool ~ jails_mount ~ '/downloads/' ~ [jails_target, jails_machine, jails_arch] | join('-') }}"
+    jails_template: "{{ jails_zpool ~ jails_mount ~ '/templates/' ~ [jails_target, jails_machine, jails_arch] | join('-') }}"
+    # directories
+    download_dir:   "{{ jails_mount ~ '/downloads/' ~ [jails_target, jails_machine, jails_arch ] | join('-') }}"
+    template_dir:   "{{ jails_mount ~ '/templates/' ~ [jails_target, jails_machine, jails_arch ] | join('-') }}"
+    # presence of zfs snapshot allows short-cutting the role
+    template_ready: "{{ jails_mount ~ '/templates/' ~ [jails_target, jails_machine, jails_arch ] | join('-') }}/.zfs/snapshot/ready"
+  tags: jails, facts
 
+- name: check for presence of final snapshot
+  stat:
+    path: "{{ template_ready }}"
+  register: snapshot
+  tags: jails, facts
+
+# do this the inverted way, to make when: checks in the role more usable
+- name: register template unfinished flag
+  set_fact:
+      template_missing: true
+  tags: jails, facts
+
+- name: clear template unfinished flag if final snapshot was found
+  set_fact:
+      template_missing: false
+  when: snapshot.stat.isdir is defined and snapshot.stat.isdir
+  tags: jails, facts
+
+- name: create main dataset
+  community.general.zfs:
+    name: "{{ jails_ds }}"
+    state: present
+    extra_zfs_properties:
+      mountpoint: "{{ jails_mount }}"
+      readonly: off
+      atime: off
+  when: template_missing
+  tags: jails, zfs
+
+- name: create intermediary datasets
+  community.general.zfs:
+    name: "{{ jails_dss ~ item }}"
+    state: present
+    extra_zfs_properties:
+      readonly: off
+      canmount: off
+  loop:
+    - downloads
+    - instances
+    - templates
+  when: template_missing
+  tags: jails, zfs
+
+- name: create template dataset
+  community.general.zfs:
+    name: "{{ item }}"
+    state: present
+    extra_zfs_properties:
+      readonly: off
+  loop:
+    - "{{ jails_download }}"
+    - "{{ jails_template }}"
+  when: template_missing
+  tags: jails, zfs
+
+- name: set permissions
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: no
+    owner: root
+    group: wheel
+    mode: '0770'
+  loop:
+    - "{{ jails_mount }}"
+    - "{{ jails_mount }}/downloads"
+    - "{{ jails_mount }}/instances"
+    - "{{ jails_mount }}/tags"
+    - "{{ jails_mount }}/templates"
+  when: template_missing
+  tags: jails, zfs
+
+- name: enable loader tunables
+  lineinfile:
+    dest: /boot/loader.conf
+    line: "{{ item }}"
+  loop:
+    - 'kern.racct.enable=1'
+  tags: jails, loader
+
+- name: create global jail.conf file
+  template:
+    src: "{{ jails_jail_conf }}"
+    dest: /etc/jail.conf
+    mode: 0440
+  tags: jails, daemon
+
+- name: create jail config dir for instances
+  file:
+    path: /etc/jail.conf.d
+    state: directory
+    mode: '0640'
+  tags: jails, daemon
+
+- name: enable jails on boot
+  copy:
+    content: |
+      jail_enable=YES
+      jail_list="{{
+        jails_list | map(attribute='name') | join(' ')
+      }}"
+    dest: /etc/rc.conf.d/jail
+    mode: 0440
+  tags: jails, daemon

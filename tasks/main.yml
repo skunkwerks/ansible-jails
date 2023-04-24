@@ -1,5 +1,16 @@
 ---
-- include: setup.yml
-- include: config.yml
-- include: security.yml
-- include: daemon.yml
+- import_tasks: setup.yml
+- import_tasks: config.yml
+- import_tasks: template.yml
+# dynamic inclusion of instances
+- include_tasks: instance.yml
+  with_items: '{{ jails_list }}'
+  loop_control:
+    loop_var: instance
+  args:
+    apply:
+      tags:
+        - instance
+  when: (jails_list | count() > 0)
+# final refresh of facts
+- import_tasks: final.yml

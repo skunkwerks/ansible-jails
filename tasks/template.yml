@@ -1,0 +1,121 @@
+---
+- name: set template facts
+  set_fact:
+    cacheable: yes
+    jails_download_dir: '{{ jails_mount ~ "/downloads/" ~ [jails_target, jails_machine, jails_arch] | join("-") }}'
+    jails_fetch_file:   '{{ jails_mount ~ "/downloads/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/" ~ jails_tarball }}'
+    template_abi:       '{{ jails_abi }}'
+    template_dir:       '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") }}'
+    template_etc_dir:   '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/etc" }}'
+    template_packages:  'lang/python3 ports-mgmt/pkg {{ jails_default_packages | join(" ") }}'
+  tags: jails, template, facts
+
+- name: fetch tarball without checksum
+  get_url:
+    url:      '{{ jails_url }}'
+    dest:     '{{ jails_fetch_file }}'
+  when: jails_tarball_sha256 is undefined
+  tags: jails, template, fetch
+
+- name: fetch tarball with checksum
+  get_url:
+    url:      '{{ jails_url }}'
+    dest:     '{{ jails_fetch_file }}'
+    checksum: 'sha256:{{ jails_tarball_sha256 }}'
+  when: jails_tarball_sha256 is defined
+  tags: jails, template, fetch
+
+- name: unpack tarball into template chroot
+  ansible.builtin.command:
+    cmd: >
+      /usr/bin/tar xpf {{ jails_fetch_file }}
+      -C {{ template_dir }}
+    creates: '{{ template_dir }}/.zfs/snapshot/unpacked'
+  tags: jails, template, tar
+
+- name: snapshot unpacked template
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ jails_template }}@unpacked
+    creates: '{{ template_dir }}/.zfs/snapshot/unpacked'
+  tags: jails, template, tar
+
+- name: disable services in template by default
+  copy:
+    dest: '{{ template_etc_dir }}/rc.conf'
+    content: |
+      hostname=template
+      jail_host={{ inventory_hostname_short }}
+      cron_enable=NO
+      ntpd_enable=NO
+      sendmail_enable=NONE
+      sendmail_msp_queue_enable=NO
+      sendmail_outbound_enable=NO
+      sendmail_submit_enable=NO
+      sshd_enable=NO
+      syslogd_enable=NO
+      syslogd_flags=-ss
+      zfs_enable=YES
+  tags: jails, template, services
+
+- name: ensure UTC in template if not set
+  ansible.builtin.command:
+    cmd: >
+      tzsetup -s -C {{ template_dir }} UTC
+    creates: '{{ template_etc_dir }}/localtime'
+  tags: jails, template, timezone
+
+- name: create /usr/local/etc dir with correct permissions
+  file:
+    path: "{{ template_dir }}/usr/local/etc"
+    state: directory
+    mode: 0755
+    owner: root
+    group: wheel
+  tags: jails, template, facts
+
+- name: create ansible local facts dir
+  file:
+    path: "{{ template_dir }}/usr/local/etc/ansible/facts.d"
+    state: directory
+    mode: 0750
+    owner: root
+    group: wheel
+  tags: jails, template, facts
+
+- name: install essential packages
+  ansible.builtin.command:
+    cmd: >
+      /usr/bin/env REPO_DIR=/tmp/repo ASSUME_ALWAYS_YES=yes
+        /usr/local/sbin/pkg
+          -o ABI={{ template_abi }}
+          --rootdir {{ template_dir }}
+          install -r {{ jails_repo }}
+          -y {{ template_packages }}
+    creates: '{{ template_dir }}/usr/local/bin/python3'
+  no_log: true
+  tags: jails, template, python, packages
+
+- name: snapshot with tweaks
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ jails_template }}@tweaked
+    creates: '{{ template_dir }}/.zfs/snapshot/tweaked'
+  tags: jails, template
+
+- name: hook out to custom template role
+  import_role:
+    name: '{{ jails_template_role | default(None) }}'
+  vars:
+    is_instance: true
+  delegate_to: '{{ instance_name }}'
+  delegate_facts: true
+  when: jails_template_role is defined
+  tags: jails, template, custom
+
+- name: prepare final snapshot for cloning
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ jails_template }}@ready
+    creates: '{{ template_dir }}/.zfs/snapshot/ready'
+  tags: jails, template, zfs

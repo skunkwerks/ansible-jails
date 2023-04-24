@@ -1,0 +1,44 @@
+# https://man.freebsd.org/jail.conf
+# https://man.freebsd.org/jail
+
+# defaults to apply to all jails
+
+exec.start = "/bin/sh /etc/rc";
+exec.stop = "/bin/sh /etc/rc.shutdown jail";
+exec.clean;
+
+# filesystem
+mount.devfs;
+mount.tmpfs;
+
+devfs_ruleset=4;
+enforce_statfs=1;
+securelevel=2;
+#allow.mount.zfs;
+#allow.mount;
+
+# disable all the shiny things
+allow.mount.nodevfs;
+allow.mount.nofdescfs;
+allow.mount.nolinprocfs;
+allow.mount.nonullfs;
+allow.mount.noprocfs;
+allow.mount.notmpfs;
+allow.nochflags;
+
+# but these are always useful
+allow.raw_sockets;
+allow.reserved_ports;
+allow.sysvipc=1;
+
+# misc
+allow.nomlock;
+allow.noquotas;
+allow.noread_msgbuf;
+allow.noset_hostname;
+allow.nosocket_af;
+allow.nosysvipc;
+sysvmsg=disable;
+sysvsem=disable;
+children.max=0;
+osrelease="{{ ansible_distribution_release }}";

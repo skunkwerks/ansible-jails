@@ -1,9 +1,9 @@
 galaxy_info:
   author: Dave Cottlehuber
   company: SkunkWerks, GmbH
-  description: template
+  description: Native FreeBSD jails deployment and management plugin
   license: BSD-2-Clause
-  issue_tracker_url: https://git.sr.ht/~dch/ansible-template
+  issue_tracker_url: https://git.sr.ht/~dch/ansible-jails
   min_ansible_version: 2.0
   platforms:
     - name: FreeBSD
@@ -11,5 +11,5 @@ galaxy_info:
         - all
   galaxy_tags:
     - freebsd
-    - template
+    - jails
 dependencies: []
