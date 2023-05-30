@@ -25,14 +25,17 @@
 
     # move additional dataset into jails if defined
 {% if instance.zfs is defined %}
-    exec.created+="/sbin/zfs jail {{ instance.name }} {{ instance.zfs }} || true";
+    exec.created+="/sbin/zfs jail {{ instance.name }} {{ instance.zfs }}";
 {% endif %}
 {% if instance.tmp is defined %}
     exec.created+="test -c {{ instance_dir }}/tmp || mount -t tmpfs tmpfs {{ instance_dir }}/tmp";
-    exec.release+="umount -f {{ instance_dir }}/tmp     || true";
+    exec.release+="umount -f {{ instance_dir }}/tmp";
 {% endif %}
-    exec.release+="umount -f {{ instance_dir }}/dev/fd  || true";
-    exec.release+="umount -f {{ instance_dir }}/dev     || true";
+{% if instance.zfs is defined %}
+    exec.release+="umount -f {{ instance.zfs }}";
+{% endif %}
+    exec.release+="umount -f {{ instance_dir }}/dev/fd";
+    exec.release+="umount -f {{ instance_dir }}/dev";
     exec.release+="logger -t jails removed {{ instance.name }}";
 
     exec.clean;
@@ -52,5 +55,7 @@
     securelevel=2;
     allow.mount.zfs;
     allow.mount;
-
+{% if instance.tunables is defined %}
+{{ instance.tunables | indent(4,true) }}
+{% endif %}
 }

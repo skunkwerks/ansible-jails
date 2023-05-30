@@ -35,11 +35,14 @@ jails_abi:        '{{ "FreeBSD:" ~
                   ("aarch64" if ansible_machine == "arm64" else ansible_machine)
                    }}'
 # list of default packages to install
-jails_default_packages:
-- lang/python3
-- ports-mgmt/pkg
+jails_default_packages: []
+
+# list of mandatory packages to install without which we can't work
+# users should not override this, use preceding jails_default_packages
+jails_mandatory_packages:
+  - lang/python3
+  - ports-mgmt/pkg
 
 # a list of jails to create, or just a variable from inventory or vars
 # by default only the templates will be prepared
 jails_list:       []
-

@@ -104,8 +104,14 @@ Example Playbook
       ip4_addr: vtnet1|10.0.0.1/30
     # provide a custom jail.conf template
     - name: oatmilk
-      hostname: my.example.org
+      hostname: oatmilk.example.org
       jail_conf: template.j2
+    # too lazy to do a custom template but a few options would be nice
+    - name: soy_latte
+      tunables: |
+        # read jail(8) for more useful settings
+        allow.maximum.damage;
+        permit.mayhem;
     # bind a zfs dataset into the jail
     # the dataset must exist, with properties jailed=on and mountpoint set
     - name: full_cream

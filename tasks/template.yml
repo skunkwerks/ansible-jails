@@ -7,7 +7,7 @@
     template_abi:       '{{ jails_abi }}'
     template_dir:       '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") }}'
     template_etc_dir:   '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/etc" }}'
-    template_packages:  'lang/python3 ports-mgmt/pkg {{ jails_default_packages | join(" ") }}'
+    template_packages:  '{{ (jails_mandatory_packages + jails_default_packages) | unique | join(" ") }}'
   tags: jails, template, facts
 
 - name: fetch tarball without checksum
@@ -86,14 +86,16 @@
 - name: install essential packages
   ansible.builtin.command:
     cmd: >
-      /usr/bin/env REPO_DIR=/tmp/repo ASSUME_ALWAYS_YES=yes
-        /usr/local/sbin/pkg
-          -o ABI={{ template_abi }}
-          --rootdir {{ template_dir }}
-          install -r {{ jails_repo }}
-          -y {{ template_packages }}
+      /usr/bin/env
+        ASSUME_ALWAYS_YES=yes
+        AUTOCLEAN=yes
+      /usr/local/sbin/pkg
+        -o ABI={{ template_abi }}
+        --rootdir {{ template_dir }}
+        install -r {{ jails_repo }}
+        -y {{ template_packages }}
     creates: '{{ template_dir }}/usr/local/bin/python3'
-  no_log: true
+  no_log: "{{ ansible_verbosity < 2 }}"
   tags: jails, template, python, packages
 
 - name: snapshot with tweaks

@@ -64,14 +64,14 @@
 - name: install instance packages
   ansible.builtin.command:
     cmd: >
-      /usr/bin/env REPO_DIR=/tmp/repo ASSUME_ALWAYS_YES=yes
+      /usr/bin/env ASSUME_ALWAYS_YES=yes AUTOCLEAN=yes
         /usr/local/sbin/pkg
           -o ABI={{ template_abi }}
           --rootdir {{ instance_dir }}
           install -r {{ jails_repo }}
           -y {{ instance_packages }}
   when: instance.packages is defined
-  no_log: true
+  no_log: "{{ ansible_verbosity < 2 }}"
   tags: jails, template, python, packages
 
 
