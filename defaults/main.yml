@@ -16,7 +16,7 @@ jails_resolv_conf:    'nameserver 9.9.9.9'
 jails_site:       'https://download.freebsd.org/ftp/releases'
 jails_arch:       '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
 jails_machine:    '{{ ansible_machine }}'
-jails_target:     '{{ ansible_distribution_release }}'
+jails_target:     '{{ ansible_distribution_version }}-RELEASE'
 jails_tarball:    'base.txz'
 
 # only this one is actually required for provisioning
