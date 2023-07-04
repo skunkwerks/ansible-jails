@@ -41,4 +41,4 @@ allow.nosysvipc;
 sysvmsg=disable;
 sysvsem=disable;
 children.max=0;
-osrelease="{{ ansible_distribution_release }}";
+osrelease="{{ jails_target }}";
