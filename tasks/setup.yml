@@ -105,7 +105,7 @@
   file:
     path: /etc/jail.conf.d
     state: directory
-    mode: '0640'
+    mode: '0750'
   tags: jails, daemon
 
 - name: enable jails on boot
