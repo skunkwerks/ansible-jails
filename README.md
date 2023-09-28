@@ -1,5 +1,5 @@
-Role Name
-=========
+ansible-jails
+=============
 
 ansible-jails is a FreeBSD-specific jails management tool, targeted
 specifically for immutable jail management, based off poudriere images,
@@ -30,7 +30,15 @@ Requirements
 ------------
 
 - zfs-enabled FreeBSD on target machines
-- sshjail plugin for managing remote jails (included)
+- these packages on your ansible playbook host:
+    - net/py-netaddr
+    - sysutils/ansible-sshjail
+- these packages on the target ansible jail host:
+    - lang/python
+    - security/sudo, security/doas, or similar
+
+It should be possible to run playbooks from Linux or Mac OS hosts, assuming
+the python dependencies above are made available.
 
 Role Variables
 --------------
@@ -202,6 +210,12 @@ License
 -------
 
 BSD-2-Clause
+
+Credits and Acknowledgements
+----------------------------
+
+- https://klara.systems/ - production usage and joint development
+- Florian Paul Azim Hoberg <gyptazy@gyptazy.ch> - testing and docs feedback
 
 Author Information
 ------------------
