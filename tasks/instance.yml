@@ -41,6 +41,7 @@
     path: '{{ instance_etc }}/rc.conf'
     line: 'hostname={{ instance_hostname }}'
     regexp: '^hostname='
+    create: true
   tags: jails, hostname
 
 - name: set resolv.conf
