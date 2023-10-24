@@ -83,6 +83,14 @@
     group: wheel
   tags: jails, template, facts
 
+- name: mount devfs before pkg bootstrap
+  ansible.builtin.command:
+    cmd: >
+      mount -t devfs devfs {{ template_dir }}/dev
+    creates: '{{ template_dir }}/dev/null'
+  no_log: "{{ ansible_verbosity < 2 }}"
+  tags: jails, template, pkg, mount
+
 - name: install essential packages
   ansible.builtin.command:
     cmd: >
@@ -97,6 +105,13 @@
     creates: '{{ template_dir }}/usr/local/bin/python3'
   no_log: "{{ ansible_verbosity < 2 }}"
   tags: jails, template, python, packages
+
+- name: ummount devfs after pkg bootstrap
+  ansible.builtin.command:
+    cmd: >
+      umount -f {{ template_dir }}/dev
+  no_log: "{{ ansible_verbosity < 2 }}"
+  tags: jails, template, pkg, mount
 
 - name: snapshot with tweaks
   ansible.builtin.command:
