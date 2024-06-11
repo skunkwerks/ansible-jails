@@ -65,6 +65,15 @@
     creates: '{{ template_etc_dir }}/localtime'
   tags: jails, template, timezone
 
+- name: set resolv.conf
+  copy:
+    content: "{{ jails_resolv_conf }}"
+    dest: "{{ template_etc_dir }}/resolv.conf"
+    mode: 0644
+    owner: root
+    group: wheel
+  tags: jails, template, resolv
+
 - name: create /usr/local/etc dir with correct permissions
   file:
     path: "{{ template_dir }}/usr/local/etc"
@@ -83,14 +92,6 @@
     group: wheel
   tags: jails, template, facts
 
-- name: mount devfs before pkg bootstrap
-  ansible.builtin.command:
-    cmd: >
-      mount -t devfs devfs {{ template_dir }}/dev
-    creates: '{{ template_dir }}/dev/null'
-  no_log: "{{ ansible_verbosity < 2 }}"
-  tags: jails, template, pkg, mount
-
 - name: install essential packages
   ansible.builtin.command:
     cmd: >
@@ -98,20 +99,12 @@
         ASSUME_ALWAYS_YES=yes
         AUTOCLEAN=yes
       /usr/local/sbin/pkg
-        -o ABI={{ template_abi }}
-        --rootdir {{ template_dir }}
+        --chroot {{ template_dir }}
         install -r {{ jails_repo }}
         -y {{ template_packages }}
     creates: '{{ template_dir }}/usr/local/bin/python3'
   no_log: "{{ ansible_verbosity < 2 }}"
   tags: jails, template, python, packages
-
-- name: ummount devfs after pkg bootstrap
-  ansible.builtin.command:
-    cmd: >
-      umount -f {{ template_dir }}/dev
-  no_log: "{{ ansible_verbosity < 2 }}"
-  tags: jails, template, pkg, mount
 
 - name: snapshot with tweaks
   ansible.builtin.command:
