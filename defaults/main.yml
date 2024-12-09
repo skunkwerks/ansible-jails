@@ -28,6 +28,7 @@ jails_url:        '{{ [jails_site, jails_machine, jails_arch, jails_target, jail
 
 # package repo settings if you have a custom repo
 jails_repo:       'FreeBSD'
+jails_repo_config:  ''
 # jails ABI used only to inject python3 and other packages into template
 jails_abi:        '{{ "FreeBSD:" ~
                       ansible_distribution_major_version

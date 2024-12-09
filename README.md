@@ -33,6 +33,7 @@ Requirements
 - these packages on your ansible playbook host:
     - net/py-netaddr
     - sysutils/ansible-sshjail
+    - security/sudo
 - these packages on the target ansible jail host:
     - lang/python
     - security/sudo, security/doas, or similar
@@ -94,6 +95,11 @@ Example Playbook
       search example.org
 
     jails_repo: 'FreeBSD' # or choose your custom package repo
+    jails_repo_config: |
+        pkg: {
+        url: https://private.package.repo/${ABI}
+        enabled: yes
+        }
     # ABI if you wish to enforce an ABI less than that of the host machine
     # by default the architecture is auto-detected as amd64 | aarch64
     jails_abi:  'FreeBSD:13:aarch64'

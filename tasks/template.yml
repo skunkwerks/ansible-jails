@@ -74,9 +74,9 @@
     group: wheel
   tags: jails, template, resolv
 
-- name: create /usr/local/etc dir with correct permissions
+- name: create /usr/local/etc/pkg/repos dir with correct permissions
   file:
-    path: "{{ template_dir }}/usr/local/etc"
+    path: "{{ template_dir }}/usr/local/etc/pkg/repos"
     state: directory
     mode: 0755
     owner: root
@@ -91,6 +91,16 @@
     owner: root
     group: wheel
   tags: jails, template, facts
+
+- name: create custom package repo from base system
+  copy:
+    content: "{{ jails_repo_config }}"
+    dest: "{{ template_dir }}/usr/local/etc/pkg/repos/{{ jails_repo }}.conf"
+    mode: 0400
+    owner: root
+    group: wheel
+  tags: jails, template, pkg, repo
+  when: jails_repo != 'FreeBSD'
 
 - name: install essential packages
   ansible.builtin.command:
