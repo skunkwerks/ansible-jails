@@ -40,6 +40,49 @@
     creates: '{{ template_dir }}/.zfs/snapshot/unpacked'
   tags: jails, template, tar
 
+- name: update template to latest patches
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/freebsd-update
+      --currently-running {{jails_target }}
+      -b {{ template_dir }}
+      --not-running-from-cron fetch install
+    creates: '{{ template_dir }}/.zfs/snapshot/patched'
+  register: update_result
+  changed_when: update_result.stdout is not regex('^No updates needed.*$')
+  tags: jails, template, update
+  when: jails_patch_template | default(true)
+
+- name: snapshot patched template
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ jails_template }}@patched
+    creates: '{{ template_dir }}/.zfs/snapshot/patched'
+  tags: jails, template, tar
+  when: jails_patch_template | default(true)
+
+- name: verify template integrity with IDS
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/freebsd-update
+      --currently-running {{jails_target }}
+      -b {{ template_dir }}
+      IDS
+    creates: '{{ template_dir }}/.zfs/snapshot/verified'
+  register: ids_result
+  changed_when: false
+  failed_when: ids_result.rc != 0
+  tags: jails, template, update
+  when: jails_verify_template | default(true)
+
+- name: snapshot verified template
+  ansible.builtin.command:
+    cmd: >
+      /sbin/zfs snapshot {{ jails_template }}@verified
+    creates: '{{ template_dir }}/.zfs/snapshot/verified'
+  tags: jails, template, update
+  when: jails_verify_template | default(true)
+
 - name: disable services in template by default
   copy:
     dest: '{{ template_etc_dir }}/rc.conf'

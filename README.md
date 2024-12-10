@@ -26,6 +26,11 @@ tarball, for your appropriate release and architecture.
 
 See Usage section below for jail layout and general tips.
 
+History
+-------
+
+- 1.0.0: public release
+
 Requirements
 ------------
 
@@ -107,6 +112,12 @@ Example Playbook
     jails_default_packages:
         - lang/python3
         - sysutils/spiped
+
+    # optionally patch template with freebsd-update and verify with IDS
+    # these are enabled by default but if you are deploying from
+    # custom sources, or do not have public internet, disable them
+    jails_patch_template: true
+    jails_verify_template: true
     # a list of jails to create, or just a variable from inventory or vars
     # if undefined, no jails will be created, only templates
     jails_list:
