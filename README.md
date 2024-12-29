@@ -29,6 +29,7 @@ See Usage section below for jail layout and general tips.
 History
 -------
 
+- 1.0.1: ensure zfs datasets exist before starting jail
 - 1.0.0: public release
 
 Requirements
