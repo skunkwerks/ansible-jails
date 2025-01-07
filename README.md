@@ -26,9 +26,18 @@ tarball, for your appropriate release and architecture.
 
 See Usage section below for jail layout and general tips.
 
+Bugs
+----
+
+The `/etc/rc.conf.d/jail` file does not remove jails that are no longer
+in use, or have been removed from the playbook, from the `jail_list`
+variable. This is a trade-off between having an accurate list of jails,
+versus being able to deploy jails in parallel, across different plays.
+
 History
 -------
 
+- 1.0.2: allow parallel jail deployments
 - 1.0.1: ensure zfs datasets exist before starting jail
 - 1.0.0: public release
 

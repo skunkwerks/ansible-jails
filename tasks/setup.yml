@@ -108,13 +108,20 @@
     mode: '0750'
   tags: jails, daemon
 
-- name: enable jails on boot
-  copy:
-    content: |
-      jail_enable=YES
-      jail_list="{{
-        jails_list | map(attribute='name') | join(' ')
-      }}"
-    dest: /etc/rc.conf.d/jail
-    mode: 0440
+- name: ensure each jail is in jail_list
+  command: |
+    /usr/sbin/sysrc
+      -f /etc/rc.conf.d/jail
+      jail_list+={{ item.name }}
+  loop: "{{ jails_list }}"
+  when: jails_list | length > 0
+  tags: jails, daemon
+
+- name: ensure jail_enable is set
+  lineinfile:
+    path: /etc/rc.conf.d/jail
+    line: 'jail_enable=YES'
+    regexp: '^jail_enable='
+    create: yes
+    mode: '0440'
   tags: jails, daemon
