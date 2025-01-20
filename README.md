@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 1.0.3: tidy return message from zfs dataset verification
 - 1.0.2: allow parallel jail deployments
 - 1.0.1: ensure zfs datasets exist before starting jail
 - 1.0.0: public release

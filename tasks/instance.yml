@@ -87,7 +87,7 @@
 - name: verify jailed zfs dataset exists
   ansible.builtin.command:
     cmd: >
-      /sbin/zfs list -H {{ instance.zfs }}
+      /sbin/zfs list -Ho name {{ instance.zfs }}
   register: zfs_check
   failed_when: zfs_check.rc != 0
   changed_when: false
