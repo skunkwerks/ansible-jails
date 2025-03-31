@@ -37,6 +37,8 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.0.0: support multiple IP/IPv6 addresses per jail
+         change fact name from "instance_$jail" to "instance" only
 - 1.0.3: tidy return message from zfs dataset verification
 - 1.0.2: allow parallel jail deployments
 - 1.0.1: ensure zfs datasets exist before starting jail
@@ -135,9 +137,17 @@ Example Playbook
     # a rose by any other name would smell as sweet
     - name: espresso
       log: /var/log/jail_espresso.log
-    # use a specific interface, ip, and subnet
+    # use a specific interface, ip, and subnet (single IP address)
     - name: ristretto
       ip4_addr: vtnet1|10.0.0.1/30
+    # use multiple IP addresses (array format)
+    - name: macchiato
+      ip4_addrs:
+        - vtnet0|192.168.1.10/24
+        - vtnet1|10.0.0.5/30
+      ip6_addrs:
+        - vtnet0|2001:db8::1/64
+        - vtnet1|2001:db8:1::5/64
     # provide a custom jail.conf template
     - name: oatmilk
       hostname: oatmilk.example.org

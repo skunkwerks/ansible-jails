@@ -18,11 +18,12 @@
     instance_hostname: '{{ instance.hostname | default(instance.name) }}'
     instance_packages: '{{ instance.packages | default([]) | join(" ") }}'
     instance_daemons: '{{ instance.daemons | default([]) }}'
-    # trim leading interface name if present, and drop any trailing subnet
-    instance_ip4: '{{ instance.ip4_addr | default("127.0.0.1") |
-      regex_replace("^.+\|", "") | ansible.utils.ipv4 }}'
-    instance_ip6: '{{ instance.ip6_addr |     default("::1") |
-      regex_replace("^.+\|", "") | ansible.utils.ipv6 }}'
+    # handle both single items and arrays for IP addresses
+    # if a single item is provided, convert it to a list
+    instance_ip4_addrs: "{{ [instance.ip4_addr] if (instance.ip4_addr is defined and instance.ip4_addr is string) else
+                           (instance.ip4_addrs | default(['127.0.0.1/32'])) }}"
+    instance_ip6_addrs: "{{ [instance.ip6_addr] if (instance.ip6_addr is defined and instance.ip6_addr is string) else
+                           (instance.ip6_addrs | default(['::1/128'])) }}"
     # to be templated out by either role or custom template
     instance_cfg: '/etc/jail.conf.d/{{ instance.name }}.conf'
   tags: jails, facts
@@ -120,7 +121,7 @@
   copy:
     content: |
      {{ lookup('template', 'instance.facts.j2') | from_yaml | to_nice_json }}
-    dest: '{{ instance_facts }}/instance_{{ instance.name }}.fact'
+    dest: '{{ instance_facts }}/instance.fact'
     mode: 0644
     owner: root
     group: wheel

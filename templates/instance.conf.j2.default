@@ -7,11 +7,17 @@
 
     path = '{{ instance_dir }}';
 
-{% if instance.ip4_addr is defined %}
-    ip4.addr = '{{ instance.ip4_addr | default("lo0|127.0.0.1") }}';
+{% if instance_ip4_addrs | length > 0 %}
+    ip4.addr = '{{ instance_ip4_addrs[0] }}';
+{% for addr in instance_ip4_addrs[1:] %}
+    ip4.addr += '{{ addr }}';
+{% endfor %}
 {% endif %}
-{% if instance.ip6_addr is defined %}
-    ip6.addr = '{{ instance.ip6_addr | default("lo0|::1") }}';
+{% if instance_ip6_addrs | length > 0 %}
+    ip6.addr = '{{ instance_ip6_addrs[0] }}';
+{% for addr in instance_ip6_addrs[1:] %}
+    ip6.addr += '{{ addr }}';
+{% endfor %}
 {% endif %}
 
 {% if instance.log is defined %}

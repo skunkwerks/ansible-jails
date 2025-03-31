@@ -182,3 +182,8 @@
       /sbin/zfs snapshot {{ jails_template }}@ready
     creates: '{{ template_dir }}/.zfs/snapshot/ready'
   tags: jails, template, zfs
+
+- name: deploy jail
+  debug:
+    msg: "deploying {{ instance_name | default('jail') }}"
+  tags: jails, template, deploy, hook
