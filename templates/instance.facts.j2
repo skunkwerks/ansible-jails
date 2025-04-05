@@ -1,18 +1,23 @@
 ---
 name: {{ instance.name }}
 host: {{ inventory_hostname_short }}
+fqdn: {{ instance_fqdn }}
 
 {% if instance_ip4_addrs is defined and instance_ip4_addrs|length > 0 %}
 {%- set ip4 = instance_ip4_addrs[0].split('|')[1] | default('127.0.0.1/32') | ansible.utils.ipaddr('ipv4') -%}
+{%- set if4 = instance_ip4_addrs[0].split('|')[0] | default('lo0') -%}
 ipv4:
   address: {{ ip4 | ansible.utils.ipaddr('address') }}
+  interface: "{{ if4 }}"
   prefix: {{  ip4 | ansible.utils.ipaddr('prefix') }}
 {% endif %}
 
 {% if instance_ip6_addrs is defined and instance_ip6_addrs|length > 0 %}
 {%- set ip6 = instance_ip6_addrs[0].split('|')[1] | default('::1/128') | ansible.utils.ipaddr('ipv6') -%}
+{%- set if6 = instance_ip6_addrs[0].split('|')[0] | default('lo0') -%}
 ipv6:
   address: {{ ip6 | ansible.utils.ipaddr('address') }}
+  interface: "{{  if6 }}"
   prefix: {{  ip6 | ansible.utils.ipaddr('prefix') }}
   subnet: "{{ ip6.split('::')[0] ~ '::' }}"
 {% endif %}

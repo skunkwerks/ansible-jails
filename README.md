@@ -39,6 +39,7 @@ History
 
 - 2.0.0: support multiple IP/IPv6 addresses per jail
          change fact name from "instance_$jail" to "instance" only
+         add optional FQDN fact per jail
 - 1.0.3: tidy return message from zfs dataset verification
 - 1.0.2: allow parallel jail deployments
 - 1.0.1: ensure zfs datasets exist before starting jail
@@ -111,6 +112,9 @@ Example Playbook
     jails_resolv_conf: |
       nameserver 9.9.9.9
       search example.org
+
+    # optionally, if you use DNS to resolve jail names, this sets a fact per jail
+    jails_domain: 'jails.my.domain'
 
     jails_repo: 'FreeBSD' # or choose your custom package repo
     jails_repo_config: |

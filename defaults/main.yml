@@ -12,6 +12,11 @@ jails_instance_conf:  'templates/instance.conf.j2.default'
 # most people will pick their own
 jails_resolv_conf:    'nameserver 9.9.9.9'
 
+# if you want to assign a custom FQDN to each jail
+# this is not required for provisioning
+# jails will default to $jail_name.$jail_host
+jails_domain:     ''
+
 # actually only the final URL parameter needs to be set
 jails_site:       'https://download.freebsd.org/ftp/releases'
 jails_arch:       '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'

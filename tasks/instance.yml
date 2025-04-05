@@ -17,6 +17,8 @@
     instance_name: '{{ instance.name ~ "@" ~ ansible_ssh_host }}'
     instance_hostname: '{{ instance.hostname | default(instance.name) }}'
     instance_packages: '{{ instance.packages | default([]) | join(" ") }}'
+    instance_fqdn: '{{ instance.name ~ "." ~ inventory_hostname_short }}{{
+                        ("." ~ jails_domain) if jails_domain != "" }}'
     instance_daemons: '{{ instance.daemons | default([]) }}'
     # handle both single items and arrays for IP addresses
     # if a single item is provided, convert it to a list
