@@ -131,7 +131,6 @@
 
 - name: run inventory with root & python
   ansible.builtin.setup:
-    fact_path: '{{ instance_facts }}'
   delegate_to: '{{ instance_name }}'
   delegate_facts: true
   tags: inventory
