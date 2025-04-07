@@ -37,7 +37,8 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
-- 2.0.0: support multiple IP/IPv6 addresses per jail
+- 2.0.0: use blocks to speed up deploys when template is already present
+         support multiple IP/IPv6 addresses per jail
          change fact name from "instance_$jail" to "instance" only
          add optional FQDN fact per jail
 - 1.0.3: tidy return message from zfs dataset verification

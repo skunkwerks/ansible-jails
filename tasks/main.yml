@@ -1,7 +1,8 @@
 ---
 - import_tasks: setup.yml
-- import_tasks: config.yml
 - import_tasks: template.yml
+# static role import as last task to act as a --start-from-task hook in plays
+- import_tasks: deploy.yml
 # dynamic inclusion of instances
 - include_tasks: instance.yml
   with_items: '{{ jails_list }}'

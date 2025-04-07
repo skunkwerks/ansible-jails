@@ -1,0 +1,5 @@
+---
+- name: deploy jail
+  debug:
+    msg: "deploying {{ instance_name | default('jail') }}"
+  tags: jails, template, deploy, hook
