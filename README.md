@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.1.0: template handling no longer uses instances and delegations
 - 2.0.1: relax permissions on key mountpoints
 - 2.0.0: use blocks to speed up deploys when template is already present
          support multiple IP/IPv6 addresses per jail
@@ -182,7 +183,8 @@ Example Playbook
         - sshd
         - syslogd
 
-    # your ansible role to be applied to the templated jail prior to final snapshot
+    # your ansible role to be applied to the templated directory prior to final snapshot
+    # note this is *not* a jail yet, so your roles should rely on chroot or full paths.
     jails_template_role: 'my_template_role'
 
 # do jail things to your new jails after provisioning

@@ -173,9 +173,7 @@
     import_role:
       name: '{{ jails_template_role | default(None) }}'
     vars:
-      is_instance: true
-    delegate_to: '{{ instance_name }}'
-    delegate_facts: true
+      is_template: true
     when: jails_template_role is defined
     tags: jails, template, custom
 
