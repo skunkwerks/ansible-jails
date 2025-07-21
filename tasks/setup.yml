@@ -96,7 +96,7 @@
       recurse: no
       owner: root
       group: wheel
-      mode: '0770'
+      mode: '0775'
     loop:
       - "{{ jails_mount }}"
       - "{{ jails_mount }}/downloads"
@@ -184,7 +184,7 @@
       recurse: no
       owner: root
       group: wheel
-      mode: '0770'
+      mode: '0775'
     loop:
       - "{{ jails_mount }}"
       - "{{ jails_mount }}/downloads"

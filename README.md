@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.0.1: relax permissions on key mountpoints
 - 2.0.0: use blocks to speed up deploys when template is already present
          support multiple IP/IPv6 addresses per jail
          change fact name from "instance_$jail" to "instance" only
