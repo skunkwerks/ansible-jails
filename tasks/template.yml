@@ -10,6 +10,22 @@
     template_packages:  '{{ (jails_mandatory_packages + jails_default_packages) | unique | join(" ") }}'
   tags: jails, template, facts
 
+- name: debug template facts
+  debug:
+    msg: |
+      Dump Template Facts:
+      Directories:
+        jails_download_dir: {{ jails_download_dir }}
+        jails_fetch_file: {{ jails_fetch_file }}
+        template_dir: {{ template_dir }}
+        template_etc_dir: {{ template_etc_dir }}
+      Configs:
+        template_abi: {{ template_abi }}
+        template_packages: {{ template_packages }}
+        jails_patch_template: {{ jails_patch_template | default(true) }}
+        jails_verify_template: {{ jails_verify_template | default(true) }}
+  when: ansible_verbosity > 1
+
 - name: prepare template jail
   block:
 

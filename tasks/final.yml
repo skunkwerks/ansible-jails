@@ -1,4 +1,20 @@
 ---
+- name: set final facts
+  set_fact:
+    cacheable: yes
+    final_instance_name: '{{ instance_name | default("undefined") }}'
+    final_instance_groups: '{{ instance_groups | default("undefined") }}'
+  tags: instance, facts
+
+- name: debug final facts
+  debug:
+    msg: |
+      Dump Final Facts:
+      Instance:
+        final_instance_name: {{ final_instance_name }}
+        final_instance_groups: {{ final_instance_groups }}
+  when: ansible_verbosity > 1
+
 - name: refresh the fact cache with groups and local facts
   tags: instance, facts, debug
   block:

@@ -32,6 +32,31 @@
     instance_cfg: '/etc/jail.conf.d/{{ instance.name }}.conf'
   tags: jails, facts
 
+- name: debug instance facts
+  debug:
+    msg: |
+      Dump Instance Facts:
+      Instance: {{ instance.name }}
+      Paths:
+        instance_path: {{ instance_path }}
+        instance_zfs: {{ instance_zfs }}
+        instance_dir: {{ instance_dir }}
+        instance_etc: {{ instance_etc }}
+        instance_facts: {{ instance_facts }}
+        instance_cfg: {{ instance_cfg }}
+      Identity:
+        instance_name: {{ instance_name }}
+        instance_hostname: {{ instance_hostname }}
+        instance_fqdn: {{ instance_fqdn }}
+      Network:
+        instance_ip4_addrs: {{ instance_ip4_addrs }}
+        instance_ip6_addrs: {{ instance_ip6_addrs }}
+      Config:
+        instance_packages: {{ instance_packages }}
+        instance_daemons: {{ instance_daemons }}
+        jails_template: {{ jails_template }}
+  when: ansible_verbosity > 1
+
 - name: clone per-instance zfs dataset
   community.general.zfs:
     name: '{{ instance_zfs }}'

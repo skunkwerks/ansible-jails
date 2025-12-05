@@ -37,12 +37,13 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.1.1: add debugging vars at -vv or higher level
 - 2.1.0: template handling no longer uses instances and delegations
 - 2.0.1: relax permissions on key mountpoints
 - 2.0.0: use blocks to speed up deploys when template is already present
-         support multiple IP/IPv6 addresses per jail
-         change fact name from "instance_$jail" to "instance" only
-         add optional FQDN fact per jail
+  - support multiple IP/IPv6 addresses per jail
+  - change fact name from "instance_$jail" to "instance" only
+  - add optional FQDN fact per jail
 - 1.0.3: tidy return message from zfs dataset verification
 - 1.0.2: allow parallel jail deployments
 - 1.0.1: ensure zfs datasets exist before starting jail

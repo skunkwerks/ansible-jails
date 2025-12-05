@@ -1,4 +1,18 @@
 ---
+- name: set deploy facts
+  set_fact:
+    cacheable: yes
+    deploy_instance_name: '{{ instance_name | default("jail") }}'
+  tags: jails, template, deploy, hook, facts
+
+- name: debug deploy facts
+  debug:
+    msg: |
+      Dump Deploy Facts:
+      Instance:
+        deploy_instance_name: {{ deploy_instance_name }}
+  when: ansible_verbosity > 1
+
 - name: deploy jail
   debug:
     msg: "deploying {{ instance_name | default('jail') }}"

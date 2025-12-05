@@ -22,6 +22,27 @@
     jails_template: "{{ jails_zpool ~ jails_mount ~ '/templates/' ~ [jails_target, jails_machine, jails_arch] | join('-') }}"
   tags: jails, facts, zfs
 
+- name: debug jail facts
+  debug:
+    msg: |
+      Dump Jails Facts:
+      Datasets:
+        jails_ds: {{ jails_ds }}
+        jails_dss: {{ jails_dss }}
+        jails_download: {{ jails_download }}
+        jails_template: {{ jails_template }}
+      Directories:
+        download_dir: {{ download_dir }}
+        template_dir: {{ template_dir }}
+        template_ready: {{ template_ready }}
+      Configs:
+        jails_zpool: {{ jails_zpool }}
+        jails_mount: {{ jails_mount }}
+        jails_target: {{ jails_target }}
+        jails_machine: {{ jails_machine }}
+        jails_arch: {{ jails_arch }}
+  when: ansible_verbosity > 1
+
 - name: check for presence of final snapshot
   stat:
     path: "{{ template_ready }}"
