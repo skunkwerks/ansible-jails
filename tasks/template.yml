@@ -186,7 +186,7 @@
     tags: jails, template
 
   - name: hook out to custom template role
-    import_role:
+    include_role:
       name: '{{ jails_template_role | default(None) }}'
     vars:
       is_template: true

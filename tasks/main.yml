@@ -14,4 +14,4 @@
         - instance
   when: (jails_list | count() > 0)
 # final refresh of facts
-- import_tasks: final.yml
+- include_tasks: final.yml

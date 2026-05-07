@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.1.2: minor updates for Ansible-core 2.19.9+
 - 2.1.1: add debugging vars at -vv or higher level
 - 2.1.0: template handling no longer uses instances and delegations
 - 2.0.1: relax permissions on key mountpoints
