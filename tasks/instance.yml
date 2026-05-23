@@ -1,7 +1,6 @@
 ---
 - name: set instance facts
   set_fact:
-    cacheable: yes
     # helper for subsequent facts
     instance_path: '{{ "/instances/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/" ~ instance.name }}'
     # zfs origin template for clone
@@ -10,7 +9,6 @@
 
 - name: set instance facts
   set_fact:
-    cacheable: yes
     # per-instance
     instance_zfs: '{{ jails_zpool ~ jails_mount ~ instance_path }}'
     instance_dir: '{{ jails_mount ~ instance_path }}'

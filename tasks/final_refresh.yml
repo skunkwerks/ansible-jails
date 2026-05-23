@@ -1,0 +1,12 @@
+---
+- name: update fact cache for instance
+  ansible.builtin.setup:
+  delegate_to: '{{ instance_name }}'
+  delegate_facts: true
+
+- name: update fact cache with instance groups
+  ansible.builtin.setup:
+  delegate_to: '{{ item }}'
+  delegate_facts: true
+  loop: '{{ groups[instance_groups] | default([]) }}'
+  when: instance_groups is defined

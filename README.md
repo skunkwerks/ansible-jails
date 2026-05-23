@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.1.3: fix group fact refresh loop to delegate to each group member, not instance
 - 2.1.2: minor updates for Ansible-core 2.19.9+
 - 2.1.1: add debugging vars at -vv or higher level
 - 2.1.0: template handling no longer uses instances and delegations
