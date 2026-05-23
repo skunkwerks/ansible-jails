@@ -15,6 +15,7 @@
     instance_etc: '{{ jails_mount ~ instance_path ~ "/etc" }}'
     instance_facts: '{{ jails_mount ~ instance_path ~ "/usr/local/etc/ansible/facts.d" }}'
     instance_name: '{{ instance.name ~ "@" ~ ansible_ssh_host }}'
+    instance_groups: '{{ instance.groups | default([]) }}'
     instance_hostname: '{{ instance.hostname | default(instance.name) }}'
     instance_packages: '{{ instance.packages | default([]) | join(" ") }}'
     instance_fqdn: '{{ instance.name ~ "." ~ inventory_hostname_short }}{{
