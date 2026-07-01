@@ -141,7 +141,7 @@
 - name: add convenience softlink to jail
   file:
     src: '{{ instance_dir }}'
-    dest: '/jails/tags/{{ instance.name }}'
+    dest: '{{ jails_mount }}/tags/{{ instance.name }}'
     state: link
     force: true
 
