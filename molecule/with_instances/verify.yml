@@ -1,0 +1,213 @@
+---
+- name: Verify - full jail lifecycle
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_arch: '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
+    jails_machine: '{{ ansible_machine }}'
+    jails_target: '{{ ansible_distribution_version }}-RELEASE'
+    template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
+    instance_base: '{{ jails_mount }}/instances/{{ template_tag }}'
+  tasks:
+    # -- Template infrastructure (same as default) --
+    - name: Verify template ready snapshot exists
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/templates/{{ template_tag }}/.zfs/snapshot/ready'
+      register: template_ready
+      failed_when: not template_ready.stat.exists
+
+    # -- Instance ZFS datasets --
+    - name: Verify instance ZFS datasets exist
+      ansible.builtin.command:
+        cmd: >
+          /sbin/zfs list -Ho name
+          {{ jails_zpool }}{{ jails_mount }}/instances/{{ template_tag }}/{{ item }}
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_ds
+      changed_when: false
+      failed_when: instance_ds.rc != 0
+
+    - name: Verify instance datasets are clones of template
+      ansible.builtin.command:
+        cmd: >
+          /sbin/zfs get -Ho value origin
+          {{ jails_zpool }}{{ jails_mount }}/instances/{{ template_tag }}/{{ item }}
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_origin
+      changed_when: false
+      failed_when: >
+        jails_zpool ~ jails_mount ~ '/templates/' ~ template_tag ~ '@ready'
+        not in instance_origin.stdout
+
+    # -- Instance directories --
+    - name: Verify instance root directories exist
+      ansible.builtin.stat:
+        path: '{{ instance_base }}/{{ item }}'
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_dirs
+      failed_when: not instance_dirs.stat.exists
+
+    # -- Instance configuration files --
+    - name: Verify instance hostname in rc.conf
+      ansible.builtin.command:
+        cmd: grep -q 'hostname={{ item.expected }}' {{ instance_base }}/{{ item.name }}/etc/rc.conf
+      loop:
+        - { name: testjail1, expected: testjail1 }
+        - { name: testjail2, expected: testjail2.example.com }
+      changed_when: false
+
+    - name: Verify instance resolv.conf exists
+      ansible.builtin.stat:
+        path: '{{ instance_base }}/{{ item }}/etc/resolv.conf'
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_resolv
+      failed_when: not instance_resolv.stat.exists
+
+    - name: Verify daemons enabled for testjail1
+      ansible.builtin.command:
+        cmd: grep -q 'syslogd_enable=YES' {{ instance_base }}/testjail1/etc/rc.conf
+      changed_when: false
+
+    - name: Verify instance packages installed (bash in testjail1)
+      ansible.builtin.stat:
+        path: '{{ instance_base }}/testjail1/usr/local/bin/bash'
+      register: bash_check
+      failed_when: not bash_check.stat.exists
+
+    # -- Per-instance jail.conf files --
+    - name: Verify per-instance jail.conf.d files exist
+      ansible.builtin.stat:
+        path: '/etc/jail.conf.d/{{ item }}.conf'
+      loop:
+        - testjail1
+        - testjail2
+      register: jail_confs
+      failed_when: not jail_confs.stat.exists
+
+    - name: Verify testjail1 jail.conf contains correct IP
+      ansible.builtin.command:
+        cmd: grep -q '127.0.0.2' /etc/jail.conf.d/testjail1.conf
+      changed_when: false
+
+    - name: Verify testjail2 jail.conf contains multiple IPv4 addresses
+      ansible.builtin.command:
+        cmd: grep -c 'ip4.addr' /etc/jail.conf.d/testjail2.conf
+      register: ip4_count
+      changed_when: false
+      failed_when: ip4_count.stdout | int < 2
+
+    - name: Verify testjail2 jail.conf contains multiple IPv6 addresses
+      ansible.builtin.command:
+        cmd: grep -c 'ip6.addr' /etc/jail.conf.d/testjail2.conf
+      register: ip6_count
+      changed_when: false
+      failed_when: ip6_count.stdout | int < 2
+
+    - name: Verify testjail2 jail.conf has correct hostname
+      ansible.builtin.command:
+        cmd: grep -q 'testjail2.example.com' /etc/jail.conf.d/testjail2.conf
+      changed_when: false
+
+    # -- Jail rc.conf.d entries --
+    - name: Verify jails are in jail_list
+      ansible.builtin.command:
+        cmd: grep -q '{{ item }}' /etc/rc.conf.d/jail
+      loop:
+        - testjail1
+        - testjail2
+      changed_when: false
+
+    # -- Jails are running --
+    - name: Verify jails are running
+      ansible.builtin.command:
+        cmd: /usr/sbin/jls -j {{ item }} name
+      loop:
+        - testjail1
+        - testjail2
+      register: jls_check
+      changed_when: false
+      failed_when: jls_check.rc != 0
+
+    - name: Verify jail path is correct
+      ansible.builtin.command:
+        cmd: /usr/sbin/jls -j {{ item.name }} path
+      loop:
+        - { name: testjail1, path: "{{ instance_base }}/testjail1" }
+        - { name: testjail2, path: "{{ instance_base }}/testjail2" }
+      register: jls_path
+      changed_when: false
+      failed_when: item.path not in jls_path.stdout
+
+    - name: Verify jail hostname is correct
+      ansible.builtin.command:
+        cmd: /usr/sbin/jls -j {{ item.name }} host.hostname
+      loop:
+        - { name: testjail1, expected: testjail1 }
+        - { name: testjail2, expected: testjail2.example.com }
+      register: jls_hostname
+      changed_when: false
+      failed_when: item.expected not in jls_hostname.stdout
+
+    # -- Convenience symlinks --
+    - name: Verify convenience symlinks exist
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/tags/{{ item }}'
+      loop:
+        - testjail1
+        - testjail2
+      register: symlinks
+      failed_when: not symlinks.stat.exists
+
+    # -- Instance facts --
+    - name: Verify instance facts files exist
+      ansible.builtin.stat:
+        path: '{{ instance_base }}/{{ item }}/usr/local/etc/ansible/facts.d/instance.fact'
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_facts
+      failed_when: not instance_facts.stat.exists
+
+    - name: Verify instance fact content for testjail1
+      ansible.builtin.command:
+        cmd: cat {{ instance_base }}/testjail1/usr/local/etc/ansible/facts.d/instance.fact
+      register: fact_content
+      changed_when: false
+      failed_when: >
+        '"name": "testjail1"' not in fact_content.stdout
+
+    # -- Instance ZFS snapshots --
+    - name: Verify instance ready snapshots exist
+      ansible.builtin.stat:
+        path: '{{ instance_base }}/{{ item }}/.zfs/snapshot/ready'
+      loop:
+        - testjail1
+        - testjail2
+      register: instance_snaps
+      failed_when: not instance_snaps.stat.exists
+
+    # -- Process isolation checks --
+    - name: Verify jail can resolve DNS
+      ansible.builtin.command:
+        cmd: /usr/sbin/jexec testjail1 host -t A freebsd.org
+      register: dns_check
+      changed_when: false
+      failed_when: dns_check.rc != 0
+      ignore_errors: true
+
+    - name: Verify jail has python3 available
+      ansible.builtin.command:
+        cmd: /usr/sbin/jexec testjail1 /usr/local/bin/python3 --version
+      register: python_check
+      changed_when: false
+      failed_when: python_check.rc != 0

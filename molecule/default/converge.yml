@@ -1,0 +1,21 @@
+---
+- name: Converge - template only
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_patch_template: false
+    jails_verify_template: false
+    jails_list: []
+    jails_repo: molecule
+    jails_repo_config: |
+      molecule: {
+        url: "https://pkg.FreeBSD.org/${ABI}/quarterly",
+        mirror_type: "srv",
+        signature_type: "fingerprints",
+        fingerprints: "/usr/share/keys/pkg",
+        enabled: yes
+      }
+  roles:
+    - role: ansible-jails

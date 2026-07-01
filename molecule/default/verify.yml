@@ -1,0 +1,180 @@
+---
+- name: Verify - template only
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_arch: '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
+    jails_machine: '{{ ansible_machine }}'
+    jails_target: '{{ ansible_distribution_version }}-RELEASE'
+    template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
+  tasks:
+    # -- ZFS infrastructure --
+    - name: Verify main dataset exists
+      ansible.builtin.command:
+        cmd: /sbin/zfs list -Ho name {{ jails_zpool }}{{ jails_mount }}
+      register: zfs_main
+      changed_when: false
+      failed_when: zfs_main.rc != 0
+
+    - name: Verify intermediary datasets exist
+      ansible.builtin.command:
+        cmd: /sbin/zfs list -Ho name {{ jails_zpool }}{{ jails_mount }}/{{ item }}
+      loop:
+        - downloads
+        - instances
+        - templates
+      register: zfs_intermediary
+      changed_when: false
+      failed_when: zfs_intermediary.rc != 0
+
+    - name: Verify template dataset exists
+      ansible.builtin.command:
+        cmd: >
+          /sbin/zfs list -Ho name
+          {{ jails_zpool }}{{ jails_mount }}/templates/{{ template_tag }}
+      register: zfs_template
+      changed_when: false
+      failed_when: zfs_template.rc != 0
+
+    - name: Verify download dataset exists
+      ansible.builtin.command:
+        cmd: >
+          /sbin/zfs list -Ho name
+          {{ jails_zpool }}{{ jails_mount }}/downloads/{{ template_tag }}
+      register: zfs_download
+      changed_when: false
+      failed_when: zfs_download.rc != 0
+
+    - name: Verify main dataset properties
+      ansible.builtin.command:
+        cmd: /sbin/zfs get -Ho value {{ item.prop }} {{ jails_zpool }}{{ jails_mount }}
+      loop:
+        - { prop: atime, expected: "off" }
+        - { prop: readonly, expected: "off" }
+      register: zfs_props
+      changed_when: false
+      failed_when: zfs_props.stdout | trim != item.expected
+
+    # -- Directory structure --
+    - name: Verify directory structure exists
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop:
+        - '{{ jails_mount }}'
+        - '{{ jails_mount }}/downloads'
+        - '{{ jails_mount }}/instances'
+        - '{{ jails_mount }}/tags'
+        - '{{ jails_mount }}/templates'
+      register: dir_check
+      failed_when: not dir_check.stat.exists or not dir_check.stat.isdir
+
+    - name: Verify directory permissions are 0775
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop:
+        - '{{ jails_mount }}'
+        - '{{ jails_mount }}/downloads'
+        - '{{ jails_mount }}/instances'
+        - '{{ jails_mount }}/templates'
+      register: dir_perms
+      failed_when: dir_perms.stat.mode != '0775'
+
+    # -- System configuration --
+    - name: Verify loader.conf has racct tunable
+      ansible.builtin.command:
+        cmd: grep -q 'kern.racct.enable=1' /boot/loader.conf
+      changed_when: false
+
+    - name: Verify global jail.conf exists
+      ansible.builtin.stat:
+        path: /etc/jail.conf
+      register: jail_conf
+      failed_when: not jail_conf.stat.exists
+
+    - name: Verify jail.conf.d directory exists
+      ansible.builtin.stat:
+        path: /etc/jail.conf.d
+      register: jail_conf_d
+      failed_when: not jail_conf_d.stat.exists or not jail_conf_d.stat.isdir
+
+    - name: Verify jail_enable is set
+      ansible.builtin.command:
+        cmd: grep -q 'jail_enable=YES' /etc/rc.conf.d/jail
+      changed_when: false
+
+    # -- Template content --
+    - name: Set template directory fact
+      ansible.builtin.set_fact:
+        template_dir: '{{ jails_mount }}/templates/{{ template_tag }}'
+
+    - name: Verify tarball was downloaded
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
+      register: tarball
+      failed_when: not tarball.stat.exists
+
+    - name: Verify template has been unpacked (bin directory)
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/bin'
+      register: template_bin
+      failed_when: not template_bin.stat.exists
+
+    - name: Verify template rc.conf disables services
+      ansible.builtin.command:
+        cmd: grep -q 'sshd_enable=NO' {{ template_dir }}/etc/rc.conf
+      changed_when: false
+
+    - name: Verify template rc.conf enables ZFS
+      ansible.builtin.command:
+        cmd: grep -q 'zfs_enable=YES' {{ template_dir }}/etc/rc.conf
+      changed_when: false
+
+    - name: Verify template resolv.conf exists
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/etc/resolv.conf'
+      register: template_resolv
+      failed_when: not template_resolv.stat.exists
+
+    - name: Verify template ansible facts directory exists
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/etc/ansible/facts.d'
+      register: template_facts_dir
+      failed_when: not template_facts_dir.stat.exists
+
+    - name: Verify template pkg repos directory exists
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/etc/pkg/repos'
+      register: template_pkg_dir
+      failed_when: not template_pkg_dir.stat.exists
+
+    - name: Verify python3 installed in template
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/bin/python3'
+      register: template_python
+      failed_when: not template_python.stat.exists
+
+    # -- ZFS snapshots --
+    - name: Verify template ZFS snapshots exist
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/{{ item }}'
+      loop:
+        - unpacked
+        - tweaked
+        - ready
+      register: snapshots
+      failed_when: not snapshots.stat.exists
+
+    - name: Verify ready snapshot is a directory
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/ready'
+      register: ready_snap
+      failed_when: not ready_snap.stat.isdir
+
+    # -- Idempotency marker --
+    - name: Verify template_missing would be false on re-run
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/ready'
+      register: idempotent_check
+      failed_when: not idempotent_check.stat.isdir

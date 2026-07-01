@@ -1,0 +1,69 @@
+---
+- name: Destroy - clean up test jails and artifacts
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    test_jails:
+      - testjail1
+      - testjail2
+  tasks:
+    - name: Get list of running test jails
+      ansible.builtin.command:
+        cmd: /usr/sbin/jls -N name
+      register: running_jails
+      changed_when: false
+      failed_when: false
+
+    - name: Stop running test jails
+      ansible.builtin.command:
+        cmd: service jail stop {{ item }}
+      loop: '{{ test_jails }}'
+      when: >
+        running_jails.rc == 0 and
+        item in running_jails.stdout
+      failed_when: false
+
+    - name: Remove per-instance jail.conf.d files
+      ansible.builtin.file:
+        path: '/etc/jail.conf.d/{{ item }}.conf'
+        state: absent
+      loop: '{{ test_jails }}'
+
+    - name: Remove test jails from jail_list in rc.conf.d
+      ansible.builtin.lineinfile:
+        path: /etc/rc.conf.d/jail
+        regexp: '.*{{ item }}.*'
+        state: absent
+      loop: '{{ test_jails }}'
+      failed_when: false
+
+    - name: Check if test dataset exists
+      ansible.builtin.command:
+        cmd: /sbin/zfs list -Ho name {{ jails_zpool }}{{ jails_mount }}
+      register: dataset_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Destroy test ZFS dataset tree
+      ansible.builtin.command:
+        cmd: /sbin/zfs destroy -rf {{ jails_zpool }}{{ jails_mount }}
+      when: dataset_exists.rc == 0
+
+    - name: Remove test mountpoint directory
+      ansible.builtin.file:
+        path: '{{ jails_mount }}'
+        state: absent
+
+    - name: Remove convenience symlinks
+      ansible.builtin.file:
+        path: '/jails_test/tags/{{ item }}'
+        state: absent
+      loop: '{{ test_jails }}'
+      failed_when: false
+
+    - name: Remove test fact cache
+      ansible.builtin.file:
+        path: /tmp/molecule_jails_facts
+        state: absent

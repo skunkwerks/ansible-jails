@@ -1,4 +1,6 @@
 galaxy_info:
+  role_name: jails
+  namespace: skunkwerks
   author: Dave Cottlehuber
   company: SkunkWerks, GmbH
   description: Native FreeBSD jails deployment and management plugin

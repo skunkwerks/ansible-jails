@@ -1,0 +1,36 @@
+---
+- name: Converge - full jail lifecycle with instances
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_patch_template: false
+    jails_verify_template: false
+    jails_repo: molecule
+    jails_repo_config: |
+      molecule: {
+        url: "https://pkg.FreeBSD.org/${ABI}/quarterly",
+        mirror_type: "srv",
+        signature_type: "fingerprints",
+        fingerprints: "/usr/share/keys/pkg",
+        enabled: yes
+      }
+    jails_list:
+      - name: testjail1
+        ip4_addr: 'lo0|127.0.0.2/32'
+        ip6_addr: 'lo0|::1/128'
+        packages:
+          - shells/bash
+        daemons:
+          - syslogd
+      - name: testjail2
+        hostname: testjail2.example.com
+        ip4_addrs:
+          - 'lo0|127.0.0.3/32'
+          - 'lo0|127.0.0.4/32'
+        ip6_addrs:
+          - 'lo0|fd00::3/128'
+          - 'lo0|fd00::4/128'
+  roles:
+    - role: ansible-jails

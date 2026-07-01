@@ -1,0 +1,38 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: default
+platforms:
+  - name: localhost
+    groups:
+      - freebsd
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      gathering: smart
+      fact_caching: jsonfile
+      fact_caching_connection: /tmp/molecule_jails_facts
+      fact_caching_timeout: 3600
+    privilege_escalation:
+      become: true
+      become_method: sudo
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+        ansible_python_interpreter: /usr/local/bin/python3
+  options:
+    skip-tags: molecule-notest,notest,inventory
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+verifier:
+  name: ansible
+scenario:
+  name: with_instances
+  test_sequence:
+    - destroy
+    - converge
+    - verify
+    - destroy
