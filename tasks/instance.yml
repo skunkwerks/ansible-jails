@@ -185,7 +185,7 @@
 
 - name: dump custom facts from inventory
   debug:
-    var: ansible_local
+    var: hostvars[instance_name]["ansible_local"]
     verbosity: 2
   delegate_to: '{{ instance_name }}'
   delegate_facts: true

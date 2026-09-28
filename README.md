@@ -109,8 +109,8 @@ Example Playbook
     # Leaving all settings blank will fetch the official FreeBSD tarball,
     # matching the architecture of the destination jail host.
     jails_site: 'https://download.freebsd.org/ftp/releases/'
-    jails_arch: '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
-    jails_target: '{{ ansible_distribution_version }}-RELEASE'
+    jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
+    jails_target: '{{ ansible_facts["distribution_version"] }}-RELEASE'
     jails_tarball: 'base.txz'
     jails_tarball_sha256: 'abc123cafedeadb33f' # used if provided
     # these are combined by default into an architecture-dependent path

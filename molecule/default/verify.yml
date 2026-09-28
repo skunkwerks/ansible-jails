@@ -5,9 +5,9 @@
   vars:
     jails_zpool: zroot
     jails_mount: /jails_test
-    jails_arch: '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
-    jails_machine: '{{ ansible_machine }}'
-    jails_target: '{{ ansible_distribution_version }}-RELEASE'
+    jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
+    jails_machine: '{{ ansible_facts["machine"] }}'
+    jails_target: '{{ ansible_facts["distribution_version"] }}-RELEASE'
     template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
   tasks:
     # -- ZFS infrastructure --

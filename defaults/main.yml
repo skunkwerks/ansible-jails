@@ -19,9 +19,9 @@ jails_domain:     ''
 
 # actually only the final URL parameter needs to be set
 jails_site:       'https://download.freebsd.org/ftp/releases'
-jails_arch:       '{{ "aarch64" if ansible_machine == "arm64" else ansible_machine }}'
-jails_machine:    '{{ ansible_machine }}'
-jails_target:     '{{ ansible_distribution_version }}-RELEASE'
+jails_arch:       '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
+jails_machine:    '{{ ansible_facts["machine"] }}'
+jails_target:     '{{ ansible_facts["distribution_version"] }}-RELEASE'
 jails_tarball:    'base.txz'
 
 # only this one is actually required for provisioning
@@ -36,9 +36,9 @@ jails_repo:       'FreeBSD'
 jails_repo_config:  ''
 # jails ABI used only to inject python3 and other packages into template
 jails_abi:        '{{ "FreeBSD:" ~
-                      ansible_distribution_major_version
+                      ansible_facts["distribution_major_version"]
                       ~ ":" ~
-                  ("aarch64" if ansible_machine == "arm64" else ansible_machine)
+                  ("aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"])
                    }}'
 # list of default packages to install
 jails_default_packages: []
