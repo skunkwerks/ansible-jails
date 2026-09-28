@@ -23,10 +23,11 @@
     instance_daemons: '{{ instance.daemons | default([]) }}'
     # handle both single items and arrays for IP addresses
     # if a single item is provided, convert it to a list
+    # if nothing is provided, the jail gets no addresses for that family
     instance_ip4_addrs: "{{ [instance.ip4_addr] if (instance.ip4_addr is defined and instance.ip4_addr is string) else
-                           (instance.ip4_addrs | default(['127.0.0.1/32'])) }}"
+                           (instance.ip4_addrs | default([])) }}"
     instance_ip6_addrs: "{{ [instance.ip6_addr] if (instance.ip6_addr is defined and instance.ip6_addr is string) else
-                           (instance.ip6_addrs | default(['::1/128'])) }}"
+                           (instance.ip6_addrs | default([])) }}"
     # to be templated out by either role or custom template
     instance_cfg: '/etc/jail.conf.d/{{ instance.name }}.conf'
   tags: jails, facts
@@ -123,10 +124,31 @@
   when: instance.zfs is defined
   tags: jails, template, start
 
+- name: check if jail {{ instance.name }} is already running
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/jls -j {{ instance.name }} jid
+  register: jail_check
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  tags: jails, template, start
+
+# faststart skips the rc.subr pid check, which on unpatched rc.d/jail
+# matches any running jail(8) process and refuses to start other jails
 - name: start jail {{ instance.name }}
   ansible.builtin.command:
     cmd: >
-      service jail start {{ instance.name }}
+      service jail faststart {{ instance.name }}
+  when: jail_check.rc != 0
+  tags: jails, template, start
+
+# rc.d/jail exits 0 even when the jail failed to start
+- name: verify jail {{ instance.name }} is running
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/jls -j {{ instance.name }} jid
+  changed_when: false
   tags: jails, template, start
 
 - name: add jail to inventory

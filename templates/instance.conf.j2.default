@@ -12,12 +12,16 @@
 {% for addr in instance_ip4_addrs[1:] %}
     ip4.addr += '{{ addr }}';
 {% endfor %}
+{% else %}
+    ip4 = 'disable';
 {% endif %}
 {% if instance_ip6_addrs | length > 0 %}
     ip6.addr = '{{ instance_ip6_addrs[0] }}';
 {% for addr in instance_ip6_addrs[1:] %}
     ip6.addr += '{{ addr }}';
 {% endfor %}
+{% else %}
+    ip6 = 'disable';
 {% endif %}
 
 {% if instance.log is defined %}

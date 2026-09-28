@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.2.1: fix no-ip jail support
 - 2.2.0: add molecule role testing
 - 2.1.3: fix group fact refresh loop to delegate to each group member, not instance
 - 2.1.2: minor updates for Ansible-core 2.19.9+
@@ -146,6 +147,7 @@ Example Playbook
     # if undefined, no jails will be created, only templates
     jails_list:
     # a rose by any other name would smell as sweet
+    # without addresses, the jail has no IPv4 nor IPv6 networking at all
     - name: espresso
       log: /var/log/jail_espresso.log
     # use a specific interface, ip, and subnet (single IP address)
