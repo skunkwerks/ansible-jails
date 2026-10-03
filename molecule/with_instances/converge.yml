@@ -35,5 +35,7 @@
         ip6_addrs:
           - 'lo0|fd00::3/128'
           - 'lo0|fd00::4/128'
+      # without addresses, the jail has no IPv4 nor IPv6 networking at all
+      - name: testjail3
   roles:
     - role: ansible-jails

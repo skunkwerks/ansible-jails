@@ -8,6 +8,7 @@
     test_jails:
       - testjail1
       - testjail2
+      - testjail3
   tasks:
     - name: Get list of running test jails
       ansible.builtin.command:

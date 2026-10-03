@@ -33,6 +33,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_ds
       changed_when: false
       failed_when: instance_ds.rc != 0
@@ -45,6 +46,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_origin
       changed_when: false
       failed_when: >
@@ -58,6 +60,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_dirs
       failed_when: not instance_dirs.stat.exists
 
@@ -68,6 +71,7 @@
       loop:
         - { name: testjail1, expected: testjail1 }
         - { name: testjail2, expected: testjail2.example.com }
+        - { name: testjail3, expected: testjail3 }
       changed_when: false
 
     - name: Verify instance resolv.conf exists
@@ -76,6 +80,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_resolv
       failed_when: not instance_resolv.stat.exists
 
@@ -97,6 +102,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: jail_confs
       failed_when: not jail_confs.stat.exists
 
@@ -124,6 +130,21 @@
         cmd: grep -q 'testjail2.example.com' /etc/jail.conf.d/testjail2.conf
       changed_when: false
 
+    - name: Verify testjail3 jail.conf disables IPv4 and IPv6
+      ansible.builtin.command:
+        cmd: grep -q "{{ item }} = 'disable';" /etc/jail.conf.d/testjail3.conf
+      loop:
+        - ip4
+        - ip6
+      changed_when: false
+
+    - name: Verify testjail3 jail.conf has no addresses
+      ansible.builtin.command:
+        cmd: grep -Eq 'ip[46]\.addr' /etc/jail.conf.d/testjail3.conf
+      register: noip_addrs
+      changed_when: false
+      failed_when: noip_addrs.rc != 1
+
     # -- Jail rc.conf.d entries --
     - name: Verify jails are in jail_list
       ansible.builtin.command:
@@ -131,6 +152,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       changed_when: false
 
     # -- Jails are running --
@@ -140,6 +162,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: jls_check
       changed_when: false
       failed_when: jls_check.rc != 0
@@ -150,6 +173,7 @@
       loop:
         - { name: testjail1, path: "{{ instance_base }}/testjail1" }
         - { name: testjail2, path: "{{ instance_base }}/testjail2" }
+        - { name: testjail3, path: "{{ instance_base }}/testjail3" }
       register: jls_path
       changed_when: false
       failed_when: item.path not in jls_path.stdout
@@ -160,9 +184,20 @@
       loop:
         - { name: testjail1, expected: testjail1 }
         - { name: testjail2, expected: testjail2.example.com }
+        - { name: testjail3, expected: testjail3 }
       register: jls_hostname
       changed_when: false
       failed_when: item.expected not in jls_hostname.stdout
+
+    - name: Verify testjail3 is running without networking
+      ansible.builtin.command:
+        cmd: /usr/sbin/jls -j testjail3 {{ item }}
+      loop:
+        - ip4
+        - ip6
+      register: jls_noip
+      changed_when: false
+      failed_when: jls_noip.stdout != 'disable'
 
     # -- Convenience symlinks --
     - name: Verify convenience symlinks exist
@@ -171,6 +206,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: symlinks
       failed_when: not symlinks.stat.exists
 
@@ -181,6 +217,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_facts
       failed_when: not instance_facts.stat.exists
 
@@ -192,6 +229,19 @@
       failed_when: >
         '"name": "testjail1"' not in fact_content.stdout
 
+    - name: Read instance fact for testjail3
+      ansible.builtin.command:
+        cmd: cat {{ instance_base }}/testjail3/usr/local/etc/ansible/facts.d/instance.fact
+      register: noip_fact
+      changed_when: false
+
+    - name: Verify instance fact for testjail3 has no addresses
+      ansible.builtin.assert:
+        that:
+          - (noip_fact.stdout | from_json).name == 'testjail3'
+          - (noip_fact.stdout | from_json).ipv4 is undefined
+          - (noip_fact.stdout | from_json).ipv6 is undefined
+
     # -- Instance ZFS snapshots --
     - name: Verify instance ready snapshots exist
       ansible.builtin.stat:
@@ -199,6 +249,7 @@
       loop:
         - testjail1
         - testjail2
+        - testjail3
       register: instance_snaps
       failed_when: not instance_snaps.stat.exists
 
