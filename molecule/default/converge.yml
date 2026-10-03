@@ -8,6 +8,10 @@
     jails_patch_template: false
     jails_verify_template: false
     jails_list: []
+    # template hooks: extra packages and a custom role before @ready
+    jails_default_packages:
+      - sysutils/tree
+    jails_template_role: template_marker
     jails_repo: molecule
     jails_repo_config: |
       molecule: {

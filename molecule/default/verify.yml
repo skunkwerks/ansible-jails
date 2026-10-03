@@ -197,3 +197,19 @@
         path: '{{ template_dir }}/.zfs/snapshot/ready'
       register: idempotent_check
       failed_when: not idempotent_check.stat.isdir
+
+    # -- Template hooks --
+    - name: Verify jails_default_packages installed in template
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/ready/usr/local/bin/tree'
+      register: default_pkg
+      failed_when: not default_pkg.stat.exists
+
+    - name: Verify jails_template_role ran before the ready snapshot
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/{{ item.snap }}/etc/molecule-template-role'
+      loop:
+        - { snap: tweaked, present: false }
+        - { snap: ready, present: true }
+      register: marker
+      failed_when: marker.stat.exists != item.present

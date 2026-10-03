@@ -12,5 +12,20 @@
     jails_patch_template: false
     jails_verify_template: false
     jails_list: []
+    jails_manifest_url: >-
+      https://download.freebsd.org/ftp/releases/{{ ansible_facts["machine"] }}/{{
+      "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"]
+      }}/{{ jails_target }}/MANIFEST
+  # exercise the checksummed fetch, with the hash from the release MANIFEST
+  pre_tasks:
+    - name: Fetch release MANIFEST
+      ansible.builtin.uri:
+        url: '{{ jails_manifest_url }}'
+        return_content: true
+      register: manifest
+
+    - name: Set tarball checksum from MANIFEST
+      ansible.builtin.set_fact:
+        jails_tarball_sha256: "{{ manifest.content | regex_search('^base\\.txz\\t([0-9a-f]{64})', '\\1', multiline=True) | first }}"
   roles:
     - role: ansible-jails

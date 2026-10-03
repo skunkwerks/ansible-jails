@@ -24,7 +24,7 @@ provisioner:
         ansible_connection: local
         ansible_python_interpreter: /usr/local/bin/python
   env:
-    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/..:${MOLECULE_SCENARIO_DIRECTORY}/../roles"
 verifier:
   name: ansible
 scenario:

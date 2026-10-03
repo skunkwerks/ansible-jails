@@ -1,0 +1,14 @@
+---
+# applied by jails_template_role to the template directory, before the
+# final snapshot, so the marker should be in @ready but not @tweaked
+- name: Verify role is called as a template hook
+  ansible.builtin.assert:
+    that:
+      - is_template | bool
+      - template_dir is defined
+
+- name: Write marker into the template
+  ansible.builtin.copy:
+    content: "template_dir={{ template_dir }}\n"
+    dest: '{{ template_dir }}/etc/molecule-template-role'
+    mode: '0644'

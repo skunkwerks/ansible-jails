@@ -15,8 +15,22 @@
     - name: Verify tarball was downloaded
       ansible.builtin.stat:
         path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
+        checksum_algorithm: sha256
       register: tarball
       failed_when: not tarball.stat.exists
+
+    - name: Fetch release MANIFEST
+      ansible.builtin.uri:
+        url: 'https://download.freebsd.org/ftp/releases/{{ jails_machine }}/{{ jails_arch }}/{{ jails_target }}/MANIFEST'
+        return_content: true
+      register: manifest
+
+    - name: Verify tarball matches the checksum it was fetched with
+      ansible.builtin.assert:
+        that:
+          - >-
+            tarball.stat.checksum ==
+            manifest.content | regex_search('^base\\.txz\\t([0-9a-f]{64})', '\\1', multiline=True) | first
 
     - name: Verify template is the pinned release
       ansible.builtin.command:
