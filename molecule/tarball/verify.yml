@@ -1,0 +1,53 @@
+---
+- name: Verify - tarball template with default repos
+  hosts: localhost
+  become: true
+  vars:
+    jails_mount: /jails_test
+    jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
+    jails_machine: '{{ ansible_facts["machine"] }}'
+    # keep in sync with converge.yml; must be a supported 14.x release,
+    # EOL releases move to the archive which lacks valid TLS
+    jails_target: 14.5-RELEASE
+    template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
+    template_dir: '{{ jails_mount }}/templates/{{ template_tag }}'
+  tasks:
+    - name: Verify tarball was downloaded
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
+      register: tarball
+      failed_when: not tarball.stat.exists
+
+    - name: Verify template is the pinned release
+      ansible.builtin.command:
+        cmd: '{{ template_dir }}/bin/freebsd-version -u'
+      register: release
+      changed_when: false
+      failed_when: not release.stdout.startswith(jails_target)
+
+    - name: Verify base system is not registered as packages
+      ansible.builtin.command:
+        cmd: /usr/local/sbin/pkg --rootdir {{ template_dir }} info -e FreeBSD-runtime
+      register: base_pkg
+      changed_when: false
+      failed_when: base_pkg.rc == 0
+
+    - name: Verify python3 came from the pre-15 FreeBSD repo
+      ansible.builtin.command:
+        cmd: /usr/local/sbin/pkg --rootdir {{ template_dir }} query '%R' python3
+      register: python_repo
+      changed_when: false
+      failed_when: python_repo.stdout != 'FreeBSD'
+
+    - name: Verify no pkgbase repo was enabled inside the template
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/etc/pkg/repos/FreeBSD-base.conf'
+      register: pkgbase_repo
+      failed_when: pkgbase_repo.stat.exists
+
+    - name: Verify tarball snapshots exist
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/{{ item }}'
+      loop: [unpacked, tweaked, ready]
+      register: snapshots
+      failed_when: not snapshots.stat.exists

@@ -28,7 +28,7 @@ provisioner:
 verifier:
   name: ansible
 scenario:
-  name: default
+  name: tarball
   test_sequence:
     - destroy
     - converge

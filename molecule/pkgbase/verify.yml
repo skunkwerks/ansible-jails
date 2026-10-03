@@ -1,0 +1,64 @@
+---
+- name: Verify - pkgbase template with default repos
+  hosts: localhost
+  become: true
+  vars:
+    jails_mount: /jails_test
+    jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
+    jails_machine: '{{ ansible_facts["machine"] }}'
+    jails_target: '{{ ansible_facts["distribution_release"] | regex_replace("-p[0-9]+$", "") }}'
+    template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
+    template_dir: '{{ jails_mount }}/templates/{{ template_tag }}'
+    expected_repo: '{{ "FreeBSD-ports" if ansible_facts["distribution_major_version"] | int >= 15 else "FreeBSD" }}'
+  tasks:
+    - name: Verify base system packages came from FreeBSD-base
+      ansible.builtin.command:
+        cmd: /usr/local/sbin/pkg --rootdir {{ template_dir }} query '%R' FreeBSD-runtime
+      register: base_repo
+      changed_when: false
+      failed_when: base_repo.stdout != 'FreeBSD-base'
+
+    - name: Verify python3 came from the default ports repo
+      ansible.builtin.command:
+        cmd: /usr/local/sbin/pkg --rootdir {{ template_dir }} query '%R' python3
+      register: python_repo
+      changed_when: false
+      failed_when: python_repo.stdout != expected_repo
+
+    - name: Verify pkgbase repo is enabled inside the template
+      ansible.builtin.command:
+        cmd: >-
+          grep -q 'enabled: yes' {{ template_dir }}/usr/local/etc/pkg/repos/FreeBSD-base.conf
+      changed_when: false
+
+    - name: Verify no custom ports repo config was written
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/etc/pkg/repos/{{ expected_repo }}.conf'
+      register: ports_repo_conf
+      failed_when: ports_repo_conf.stat.exists
+
+    - name: Verify base packages were cached outside the template
+      ansible.builtin.find:
+        paths: '{{ template_dir }}/var/cache/pkg'
+        patterns: 'FreeBSD-*.pkg'
+      register: template_cache
+      failed_when: template_cache.matched > 0
+
+    - name: Verify no tarball was downloaded
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
+      register: tarball
+      failed_when: tarball.stat.exists
+
+    - name: Verify pkgbase snapshots exist
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/{{ item }}'
+      loop: [unpacked, verified, tweaked, ready]
+      register: snapshots
+      failed_when: not snapshots.stat.exists
+
+    - name: Verify freebsd-update was skipped
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/.zfs/snapshot/patched'
+      register: patched
+      failed_when: patched.stat.exists

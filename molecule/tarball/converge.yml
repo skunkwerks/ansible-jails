@@ -1,0 +1,16 @@
+---
+# template from base.txz, pinned to a pre-15 release so the default
+# jails_repo resolves to the old FreeBSD repo name
+- name: Converge - tarball template with default repos
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_base_pkg: false
+    jails_target: 14.5-RELEASE
+    jails_patch_template: false
+    jails_verify_template: false
+    jails_list: []
+  roles:
+    - role: ansible-jails

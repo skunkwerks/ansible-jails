@@ -7,7 +7,7 @@
     jails_mount: /jails_test
     jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
     jails_machine: '{{ ansible_facts["machine"] }}'
-    jails_target: '{{ ansible_facts["distribution_version"] }}-RELEASE'
+    jails_target: '{{ ansible_facts["distribution_release"] | regex_replace("-p[0-9]+$", "") }}'
     template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
   tasks:
     # -- ZFS infrastructure --
@@ -109,11 +109,30 @@
       ansible.builtin.set_fact:
         template_dir: '{{ jails_mount }}/templates/{{ template_tag }}'
 
-    - name: Verify tarball was downloaded
+    # 15.0+ defaults to pkgbase, older releases and CURRENT to the tarball
+    - name: Set expected build method
+      ansible.builtin.set_fact:
+        expect_base_pkg: '{{ jails_target.split(".")[0] | int >= 15
+                             and jails_target is not search("-CURRENT$") }}'
+
+    - name: Verify base system packages are registered only with pkgbase
+      ansible.builtin.command:
+        cmd: /usr/local/sbin/pkg --rootdir {{ template_dir }} info -e FreeBSD-runtime
+      register: base_pkg
+      changed_when: false
+      failed_when: (base_pkg.rc == 0) != (expect_base_pkg | bool)
+
+    - name: Verify pkgbase repo is enabled inside the template only with pkgbase
+      ansible.builtin.stat:
+        path: '{{ template_dir }}/usr/local/etc/pkg/repos/FreeBSD-base.conf'
+      register: pkgbase_repo
+      failed_when: pkgbase_repo.stat.exists != (expect_base_pkg | bool)
+
+    - name: Verify tarball was downloaded only without pkgbase
       ansible.builtin.stat:
         path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
       register: tarball
-      failed_when: not tarball.stat.exists
+      failed_when: tarball.stat.exists == (expect_base_pkg | bool)
 
     - name: Verify template has been unpacked (bin directory)
       ansible.builtin.stat:

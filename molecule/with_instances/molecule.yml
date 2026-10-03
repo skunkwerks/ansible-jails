@@ -22,7 +22,7 @@ provisioner:
     host_vars:
       localhost:
         ansible_connection: local
-        ansible_python_interpreter: /usr/local/bin/python3
+        ansible_python_interpreter: /usr/local/bin/python
   options:
     skip-tags: molecule-notest,notest,inventory
   env:

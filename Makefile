@@ -1,13 +1,21 @@
-.PHONY: test test-default test-instances destroy
+.PHONY: test test-default test-instances test-pkgbase test-tarball destroy
 
-test: test-default test-instances destroy
+test: test-default test-instances test-pkgbase test-tarball destroy
 
 test-default:
-	${MOLECULE} test -s default
+	molecule test -s default
 
 test-instances:
-	${MOLECULE} test -s with_instances
+	molecule test -s with_instances
+
+test-pkgbase:
+	molecule test -s pkgbase
+
+test-tarball:
+	molecule test -s tarball
 
 destroy:
-	${MOLECULE} destroy -s default
-	${MOLECULE} destroy -s with_instances
+	molecule destroy -s default
+	molecule destroy -s with_instances
+	molecule destroy -s pkgbase
+	molecule destroy -s tarball

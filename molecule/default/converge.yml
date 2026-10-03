@@ -11,7 +11,8 @@
     jails_repo: molecule
     jails_repo_config: |
       molecule: {
-        url: "https://pkg.FreeBSD.org/${ABI}/quarterly",
+        # CURRENT and STABLE have no quarterly branch
+        url: "https://pkg.FreeBSD.org/${ABI}/{{ 'quarterly' if ansible_facts['distribution_release'] is search('-RELEASE') else 'latest' }}",
         mirror_type: "srv",
         signature_type: "fingerprints",
         fingerprints: "/usr/share/keys/pkg",

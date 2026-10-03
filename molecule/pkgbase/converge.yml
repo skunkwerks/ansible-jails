@@ -1,0 +1,13 @@
+---
+# template from pkgbase (the default), with the default jails_repo so that
+# packages come from FreeBSD-ports on 15.0+, or FreeBSD before that
+- name: Converge - pkgbase template with default repos
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+    jails_verify_template: true
+    jails_list: []
+  roles:
+    - role: ansible-jails

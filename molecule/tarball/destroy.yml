@@ -1,0 +1,29 @@
+---
+- name: Destroy - clean up test artifacts
+  hosts: localhost
+  become: true
+  vars:
+    jails_zpool: zroot
+    jails_mount: /jails_test
+  tasks:
+    - name: Check if test dataset exists
+      ansible.builtin.command:
+        cmd: /sbin/zfs list -Ho name {{ jails_zpool }}{{ jails_mount }}
+      register: dataset_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Destroy test ZFS dataset tree
+      ansible.builtin.command:
+        cmd: /sbin/zfs destroy -rf {{ jails_zpool }}{{ jails_mount }}
+      when: dataset_exists.rc == 0
+
+    - name: Remove test mountpoint directory
+      ansible.builtin.file:
+        path: '{{ jails_mount }}'
+        state: absent
+
+    - name: Remove test fact cache
+      ansible.builtin.file:
+        path: /tmp/molecule_jails_facts
+        state: absent

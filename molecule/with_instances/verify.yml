@@ -7,7 +7,7 @@
     jails_mount: /jails_test
     jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
     jails_machine: '{{ ansible_facts["machine"] }}'
-    jails_target: '{{ ansible_facts["distribution_version"] }}-RELEASE'
+    jails_target: '{{ ansible_facts["distribution_release"] | regex_replace("-p[0-9]+$", "") }}'
     template_tag: '{{ [jails_target, jails_machine, jails_arch] | join("-") }}'
     instance_base: '{{ jails_mount }}/instances/{{ template_tag }}'
   tasks:
@@ -17,6 +17,12 @@
         path: '{{ jails_mount }}/templates/{{ template_tag }}/.zfs/snapshot/ready'
       register: template_ready
       failed_when: not template_ready.stat.exists
+
+    - name: Verify template was built from the tarball (jails_base_pkg false)
+      ansible.builtin.stat:
+        path: '{{ jails_mount }}/downloads/{{ template_tag }}/base.txz'
+      register: tarball
+      failed_when: not tarball.stat.exists
 
     # -- Instance ZFS datasets --
     - name: Verify instance ZFS datasets exist
