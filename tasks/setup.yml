@@ -1,4 +1,43 @@
 ---
+# fail before touching the host, rather than half way through a jail
+- name: check every jail address has an interface
+  assert:
+    that:
+      - item.addr is match("^[^|]+\\|[^|]+$")
+    fail_msg: >
+      jail {{ item.name }} address '{{ item.addr }}' must be in the form
+      interface|address, e.g. vtnet0|192.0.2.1/24
+    quiet: true
+  loop: "{{ jails_check_addrs }}"
+  vars:
+    # same single item or list handling as instance.yml
+    jails_check_addrs: >-
+      {%- set out = [] -%}
+      {%- for j in jails_list -%}
+      {%- for a in ([j.ip4_addr] if (j.ip4_addr is defined and j.ip4_addr is string) else j.ip4_addrs | default([]))
+                 + ([j.ip6_addr] if (j.ip6_addr is defined and j.ip6_addr is string) else j.ip6_addrs | default([])) -%}
+      {%- set _ = out.append({"name": j.name, "addr": a}) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ out }}
+  tags: always
+
+# the instance facts template needs ipaddr, which runs on the controller
+- name: check controller dependencies
+  block:
+    - name: check ansible.utils and netaddr on the controller
+      set_fact:
+        jails_ipaddr_check: "{{ '192.0.2.1/24' | ansible.utils.ipaddr('address') }}"
+  rescue:
+    - name: fail on missing controller dependencies
+      fail:
+        msg: >
+          the ansible.utils collection and the python netaddr library
+          (net/py-netaddr) must be installed for {{ ansible_playbook_python }}
+          on the ansible controller: {{ ansible_failed_result.msg }}
+  when: jails_list | length > 0
+  tags: always
+
 - name: set role facts
   set_fact:
     cacheable: yes
@@ -112,6 +151,18 @@
     loop:
       - "{{ jails_download }}"
       - "{{ jails_template }}"
+    when: template_missing
+    tags: jails, zfs
+
+  - name: verify template datasets are mounted where expected
+    command: /sbin/zfs get -H -o value mounted,mountpoint {{ item.ds }}
+    loop:
+      - { ds: "{{ jails_download }}", dir: "{{ download_dir }}" }
+      - { ds: "{{ jails_template }}", dir: "{{ template_dir }}" }
+    register: template_mount
+    changed_when: false
+    check_mode: false
+    failed_when: template_mount.stdout_lines != ['yes', item.dir]
     when: template_missing
     tags: jails, zfs
 

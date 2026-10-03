@@ -175,6 +175,7 @@ Example Playbook
     - name: espresso
       log: /var/log/jail_espresso.log
     # use a specific interface, ip, and subnet (single IP address)
+    # every address must be interface|address, the interface is mandatory
     - name: ristretto
       ip4_addr: vtnet1|10.0.0.1/30
     # use multiple IP addresses (array format)
