@@ -66,6 +66,11 @@
     /usr/sbin/sysrc
       -f /etc/rc.conf.d/jail
       jail_list+={{ item.name }}
+  register: jail_list_add
+  # sysrc prints "jail_list: old -> new", unchanged if already present
+  changed_when: >
+    jail_list_add.stdout.split(' -> ')[0].split(': ', 1)[-1]
+    != jail_list_add.stdout.split(' -> ')[-1]
   loop: "{{ jails_list }}"
   when: jails_list | length > 0
   tags: jails, daemon

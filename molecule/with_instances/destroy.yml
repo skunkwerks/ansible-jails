@@ -52,6 +52,13 @@
         cmd: /sbin/zfs destroy -rf {{ jails_zpool }}{{ jails_mount }}
       when: dataset_exists.rc == 0
 
+    - name: Destroy jailed test ZFS dataset
+      ansible.builtin.command:
+        cmd: /sbin/zfs destroy -rf zroot/jails_test_jailed
+      register: jailed_destroy
+      changed_when: jailed_destroy.rc == 0
+      failed_when: false
+
     - name: Remove test mountpoint directory
       ansible.builtin.file:
         path: '{{ jails_mount }}'

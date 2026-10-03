@@ -199,6 +199,31 @@
       changed_when: false
       failed_when: jls_noip.stdout != 'disable'
 
+    # -- Jailed zfs dataset --
+    - name: Verify testjail1 jail.conf attaches the jailed dataset
+      ansible.builtin.command:
+        cmd: grep -q 'zfs jail testjail1 zroot/jails_test_jailed' /etc/jail.conf.d/testjail1.conf
+      changed_when: false
+
+    - name: Verify jailed dataset is visible and mounted inside testjail1
+      ansible.builtin.command:
+        cmd: /usr/sbin/jexec testjail1 /sbin/zfs get -Ho value mounted,mountpoint zroot/jails_test_jailed
+      register: jailed_ds
+      changed_when: false
+      failed_when: jailed_ds.stdout_lines != ['yes', '/var/db/molecule']
+
+    - name: Verify jailed dataset is writable inside testjail1
+      ansible.builtin.command:
+        cmd: /usr/sbin/jexec testjail1 /usr/bin/touch /var/db/molecule/written
+      changed_when: false
+
+    - name: Verify jailed dataset is not visible inside testjail2
+      ansible.builtin.command:
+        cmd: /usr/sbin/jexec testjail2 /sbin/zfs list -Ho name zroot/jails_test_jailed
+      register: jailed_ds_other
+      changed_when: false
+      failed_when: jailed_ds_other.rc == 0
+
     # -- Convenience symlinks --
     - name: Verify convenience symlinks exist
       ansible.builtin.stat:

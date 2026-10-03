@@ -102,6 +102,8 @@
           --chroot {{ instance_dir }}
           install -r {{ jails_repo }}
           -y {{ instance_packages }}
+  register: instance_pkg_install
+  changed_when: instance_pkg_install.stdout is not search('already installed')
   when: instance.packages is defined
   no_log: "{{ ansible_verbosity < 2 }}"
   tags: jails, template, python, packages
@@ -159,6 +161,8 @@
     ansible_connection: 'sshjail'
     ansible_ssh_port: '{{ansible_ssh_port | default("22") }}'
     ansible_python_interpreter: '/usr/local/bin/python3'
+  # in-memory inventory only, new on every run
+  changed_when: false
 
 - name: add convenience softlink to jail
   file:
