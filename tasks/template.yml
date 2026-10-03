@@ -8,6 +8,8 @@
     template_dir:       '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") }}'
     template_etc_dir:   '{{ jails_mount ~ "/templates/" ~ [jails_target, jails_machine, jails_arch] | join("-") ~ "/etc" }}'
     template_packages:  '{{ (jails_mandatory_packages + jails_default_packages) | unique | join(" ") }}'
+    # freebsd-update only supports RELEASE tarballs; base packages use pkg
+    template_freebsd_update: '{{ not jails_base_pkg | bool and jails_target is search("-RELEASE$") }}'
   tags: jails, template, facts
 
 - name: debug template facts
@@ -24,6 +26,12 @@
         template_packages: {{ template_packages }}
         jails_patch_template: {{ jails_patch_template | default(true) }}
         jails_verify_template: {{ jails_verify_template | default(true) }}
+        jails_base_pkg: {{ jails_base_pkg }}
+        template_freebsd_update: {{ template_freebsd_update }}
+        jails_base_pkg_abi: {{ jails_base_pkg_abi }}
+        jails_base_pkg_osversion: {{ jails_base_pkg_osversion }}
+        jails_base_pkg_url: {{ jails_base_pkg_url }}
+        jails_base_pkg_sets: {{ jails_base_pkg_sets | join(' ') }}
   when: ansible_verbosity > 1
 
 - name: prepare template jail
@@ -33,7 +41,7 @@
     get_url:
       url:      '{{ jails_url }}'
       dest:     '{{ jails_fetch_file }}'
-    when: jails_tarball_sha256 is undefined
+    when: not jails_base_pkg and jails_tarball_sha256 is undefined
     tags: jails, template, fetch
 
   - name: fetch tarball with checksum
@@ -41,7 +49,7 @@
       url:      '{{ jails_url }}'
       dest:     '{{ jails_fetch_file }}'
       checksum: 'sha256:{{ jails_tarball_sha256 }}'
-    when: jails_tarball_sha256 is defined
+    when: not jails_base_pkg and jails_tarball_sha256 is defined
     tags: jails, template, fetch
 
   - name: unpack tarball into template chroot
@@ -50,7 +58,69 @@
         /usr/bin/tar xpf {{ jails_fetch_file }}
         -C {{ template_dir }}
       creates: '{{ template_dir }}/.zfs/snapshot/unpacked'
+    when: not jails_base_pkg
     tags: jails, template, tar
+
+  - name: check for pkgbase signing keys on the jail host
+    stat:
+      path: '{{ jails_base_pkg_keys }}'
+    register: base_pkg_keys
+    when: jails_base_pkg
+    tags: jails, template, pkgbase
+
+  - name: fail early if pkgbase signing keys are missing
+    fail:
+      msg: >
+        {{ jails_base_pkg_keys }} is missing on this host, so base packages
+        for {{ jails_target }} cannot be verified. Set jails_base_pkg: false
+        to use the tarball, or provide the keys or your own
+        jails_base_pkg_repo_config.
+    when: jails_base_pkg and not base_pkg_keys.stat.exists
+    tags: jails, template, pkgbase
+
+  - name: create pkgbase repo config dir
+    file:
+      path: '{{ jails_download_dir }}/repos'
+      state: directory
+      mode: 0755
+    when: jails_base_pkg
+    tags: jails, template, pkgbase
+
+  - name: create pkgbase repo config for installing the template
+    copy:
+      content: "{{ jails_base_pkg_repo_config }}"
+      dest: '{{ jails_download_dir }}/repos/{{ jails_base_pkg_repo }}.conf'
+      mode: 0444
+    when: jails_base_pkg
+    tags: jails, template, pkgbase
+
+  - name: copy pkgbase signing keys into template
+    ansible.builtin.command:
+      cmd: >
+        /bin/sh -c '/bin/mkdir -p {{ template_dir }}{{ jails_base_pkg_keys | dirname }}
+        && /bin/cp -Rp {{ jails_base_pkg_keys }} {{ template_dir }}{{ jails_base_pkg_keys | dirname }}/'
+      creates: '{{ template_dir }}{{ jails_base_pkg_keys }}'
+    when: jails_base_pkg
+    tags: jails, template, pkgbase
+
+  - name: install base system packages into template
+    ansible.builtin.command:
+      cmd: >
+        /usr/bin/env
+          ASSUME_ALWAYS_YES=yes
+        /usr/local/sbin/pkg
+          --rootdir {{ template_dir }}
+          --repo-conf-dir {{ jails_download_dir }}/repos
+          -o ABI={{ jails_base_pkg_abi }}
+          -o OSVERSION={{ jails_base_pkg_osversion }}
+          -o IGNORE_OSVERSION=yes
+          -o PKG_CACHEDIR={{ jails_download_dir }}/cache
+          install -r {{ jails_base_pkg_repo }}
+          {{ jails_base_pkg_sets | join(' ') }}
+      creates: '{{ template_dir }}/.zfs/snapshot/unpacked'
+    no_log: "{{ ansible_verbosity < 2 }}"
+    when: jails_base_pkg
+    tags: jails, template, pkgbase
 
   - name: snapshot unpacked template
     ansible.builtin.command:
@@ -70,7 +140,7 @@
     register: update_result
     changed_when: update_result.stdout is not regex('^No updates needed.*$')
     tags: jails, template, update
-    when: jails_patch_template | default(true)
+    when: template_freebsd_update and jails_patch_template | default(true)
 
   - name: snapshot patched template
     ansible.builtin.command:
@@ -78,7 +148,7 @@
         /sbin/zfs snapshot {{ jails_template }}@patched
       creates: '{{ template_dir }}/.zfs/snapshot/patched'
     tags: jails, template, tar
-    when: jails_patch_template | default(true)
+    when: template_freebsd_update and jails_patch_template | default(true)
 
   - name: verify template integrity with IDS
     ansible.builtin.command:
@@ -92,7 +162,18 @@
     changed_when: false
     failed_when: ids_result.rc != 0
     tags: jails, template, update
-    when: jails_verify_template | default(true)
+    when: template_freebsd_update and jails_verify_template | default(true)
+
+  - name: verify template package checksums
+    ansible.builtin.command:
+      cmd: >
+        /usr/local/sbin/pkg
+          --rootdir {{ template_dir }}
+          check --checksums --all
+      creates: '{{ template_dir }}/.zfs/snapshot/verified'
+    changed_when: false
+    tags: jails, template, pkgbase
+    when: jails_base_pkg and jails_verify_template | default(true)
 
   - name: snapshot verified template
     ansible.builtin.command:
@@ -100,7 +181,8 @@
         /sbin/zfs snapshot {{ jails_template }}@verified
       creates: '{{ template_dir }}/.zfs/snapshot/verified'
     tags: jails, template, update
-    when: jails_verify_template | default(true)
+    # only when IDS or pkg check actually verified the template
+    when: (template_freebsd_update or jails_base_pkg) and jails_verify_template | default(true)
 
   - name: disable services in template by default
     copy:
@@ -162,7 +244,17 @@
       owner: root
       group: wheel
     tags: jails, template, pkg, repo
-    when: jails_repo != 'FreeBSD'
+    when: jails_repo not in ['FreeBSD', 'FreeBSD-ports']
+
+  - name: enable pkgbase repo inside jails for base system updates
+    copy:
+      content: "{{ jails_base_pkg_repo_config }}"
+      dest: "{{ template_dir }}/usr/local/etc/pkg/repos/{{ jails_base_pkg_repo }}.conf"
+      mode: 0444
+      owner: root
+      group: wheel
+    tags: jails, template, pkg, repo, pkgbase
+    when: jails_base_pkg
 
   - name: install essential packages
     ansible.builtin.command:

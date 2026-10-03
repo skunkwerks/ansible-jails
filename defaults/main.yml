@@ -18,21 +18,58 @@ jails_resolv_conf:    'nameserver 9.9.9.9'
 jails_domain:     ''
 
 # actually only the final URL parameter needs to be set
-jails_site:       'https://download.freebsd.org/ftp/releases'
+# releases live under releases/, CURRENT and STABLE under snapshots/
+jails_site:       '{{ "https://download.freebsd.org/ftp/" ~
+                      ("releases" if jails_target is search("-RELEASE$") else "snapshots") }}'
 jails_arch:       '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
 jails_machine:    '{{ ansible_facts["machine"] }}'
-jails_target:     '{{ ansible_facts["distribution_version"] }}-RELEASE'
+# the host's own release without patch level, e.g. 15.1-RELEASE or 16.0-CURRENT
+jails_target:     '{{ ansible_facts["distribution_release"] | regex_replace("-p[0-9]+$", "") }}'
 jails_tarball:    'base.txz'
 
 # only this one is actually required for provisioning
 # https://download.freebsd.org/ftp/releases/arm64/aarch64/13.2-RELEASE/
 jails_url:        '{{ [jails_site, jails_machine, jails_arch, jails_target, jails_tarball] | join("/") }}'
 
+# build the template from FreeBSD base system packages (pkgbase) instead
+# of fetching and unpacking jails_tarball from jails_url. Set to false to
+# use the tarball. Changing this does not rebuild an existing template.
+# Official pkgbase signing keys only ship from 15.0, and CURRENT images
+# lack them, so older and CURRENT targets default to the tarball.
+jails_base_pkg:            '{{ jails_target.split(".")[0] | int >= 15
+                               and jails_target is not search("-CURRENT$") }}'
+# FreeBSD-set-base-jail matches base.txz, FreeBSD-set-minimal-jail is smaller
+jails_base_pkg_sets:
+  - FreeBSD-set-base-jail
+jails_base_pkg_repo:       'FreeBSD-base'
+# derived from jails_target, so a 15.1-RELEASE host can build 14.3 jails
+jails_base_pkg_major:      '{{ jails_target.split(".")[0] }}'
+jails_base_pkg_minor:      '{{ jails_target.split("-")[0].split(".")[1] | default("0") }}'
+jails_base_pkg_abi:        'FreeBSD:{{ jails_base_pkg_major }}:{{ jails_arch }}'
+jails_base_pkg_osversion:  '{{ jails_base_pkg_major | int * 100000 + jails_base_pkg_minor | int * 1000 }}'
+# releases have per-minor repos, everything else tracks base_latest
+jails_base_pkg_url:        '{{ "pkg+https://pkg.FreeBSD.org/" ~ jails_base_pkg_abi ~ "/" ~
+                              ("base_release_" ~ jails_base_pkg_minor
+                               if jails_target is search("-RELEASE") else "base_latest") }}'
+# signing keys on the jail host, copied into the template before install
+# as pkg --rootdir resolves fingerprints inside the new root
+jails_base_pkg_keys:       '/usr/share/keys/pkgbase-{{ jails_base_pkg_major }}'
+# used both to install the template, and inside jails for `pkg upgrade`
+jails_base_pkg_repo_config: |
+  {{ jails_base_pkg_repo }}: {
+    url: "{{ jails_base_pkg_url }}",
+    mirror_type: "{{ 'srv' if jails_base_pkg_url is search('pkg.FreeBSD.org') else 'none' }}",
+    signature_type: "fingerprints",
+    fingerprints: "{{ jails_base_pkg_keys }}",
+    enabled: yes
+  }
+
 # an ansible role to be applied to the templated jail prior to final snapshot
 # jails_template_role: 'my_template_role'
 
 # package repo settings if you have a custom repo
-jails_repo:       'FreeBSD'
+# the official ports repo was renamed to FreeBSD-ports in 15.0
+jails_repo:       '{{ "FreeBSD-ports" if jails_target.split(".")[0] | int >= 15 else "FreeBSD" }}'
 jails_repo_config:  ''
 # jails ABI used only to inject python3 and other packages into template
 jails_abi:        '{{ "FreeBSD:" ~

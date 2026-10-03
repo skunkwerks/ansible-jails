@@ -37,6 +37,11 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.3.0: add base system packages
+- 2.2.2: fix idempotence when re-running the role
+  - only report jail_list changes when a jail is newly added
+  - only report instance package installs when packages changed
+  - do not report addinntory as a changew
 - 2.2.1: fix no-ip jail support
 - 2.2.0: add molecule role testing
 - 2.1.3: fix group fact refresh loop to delegate to each group member, not instance
@@ -97,6 +102,21 @@ Example Playbook
     # optional, self-explanatory
     jails_mount: '/jails'
 
+    # build templates from FreeBSD base system packages (pkgbase), the default.
+    # The release, ABI and repo URL are derived from jails_target, and the
+    # host's /usr/share/keys/pkgbase-<major> signing keys are used.
+    # Set to false to fetch and unpack jails_url instead, as below.
+    # Changing this does not rebuild an existing template.
+    jails_base_pkg: true
+    # FreeBSD-set-base-jail matches base.txz, FreeBSD-set-minimal-jail is smaller
+    jails_base_pkg_sets:
+      - FreeBSD-set-base-jail
+    # optionally use your own base package repo, also enabled inside jails
+    # jails_base_pkg_url: 'https://pkg.example.org/${ABI}/base'
+    # jails_base_pkg_repo_config: |
+    #   FreeBSD-base: { url: ..., signature_type: pubkey, pubkey: ..., enabled: yes }
+
+    # with jails_base_pkg false only:
     # URL to fetch from, either FreeBSD base or a poudriere-image(8) tarball
     # self-built images should contain lang/python3 /usr/local/bin/python3
     # for ansible to work
@@ -110,7 +130,7 @@ Example Playbook
     # matching the architecture of the destination jail host.
     jails_site: 'https://download.freebsd.org/ftp/releases/'
     jails_arch: '{{ "aarch64" if ansible_facts["machine"] == "arm64" else ansible_facts["machine"] }}'
-    jails_target: '{{ ansible_facts["distribution_version"] }}-RELEASE'
+    jails_target: '{{ ansible_facts["distribution_release"] | regex_replace("-p[0-9]+$", "") }}'
     jails_tarball: 'base.txz'
     jails_tarball_sha256: 'abc123cafedeadb33f' # used if provided
     # these are combined by default into an architecture-dependent path
@@ -124,7 +144,7 @@ Example Playbook
     # optionally, if you use DNS to resolve jail names, this sets a fact per jail
     jails_domain: 'jails.my.domain'
 
-    jails_repo: 'FreeBSD' # or choose your custom package repo
+    jails_repo: 'FreeBSD-ports' # FreeBSD before 15.0, or your custom package repo
     jails_repo_config: |
         pkg: {
         url: https://private.package.repo/${ABI}
@@ -139,6 +159,10 @@ Example Playbook
         - sysutils/spiped
 
     # optionally patch template with freebsd-update and verify with IDS
+    # freebsd-update is skipped for base packages and non-RELEASE targets.
+    # With jails_base_pkg, templates are installed fully patched, and
+    # jails_verify_template runs `pkg check --checksums` instead of IDS,
+    # so the @verified snapshot is still taken.
     # these are enabled by default but if you are deploying from
     # custom sources, or do not have public internet, disable them
     jails_patch_template: true
