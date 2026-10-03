@@ -1,0 +1,40 @@
+# submit this via `hut builds submit -f .builds/freebsd-15.yml`
+image: freebsd/15.x
+packages:
+  - devel/py-molecule-plugins
+  - lang/python
+  - net/py-netaddr
+  - sysutils/ansible
+sources:
+  - https://git.sr.ht/~dch/ansible-jails
+tasks:
+  - probe: |
+      uname -a
+      df -h /
+      molecule --version
+  - zpool: |
+      # sr.ht images are UFS; the role and its tests require a pool named zroot
+      kldstat -qm zfs || sudo kldload zfs
+      if ! zpool list zroot >/dev/null 2>&1; then
+        truncate -s 16G "${HOME}/zroot.img"
+        # mdconfig prints the allocated unit, which is not always md0
+        MD=$(sudo mdconfig -a -t vnode -f "${HOME}/zroot.img")
+        # -m none: tasks/setup.yml sets an explicit mountpoint on zroot/jails_test,
+        # so the pool root must not shadow the UFS root.
+        sudo zpool create -f -o ashift=12 \
+          -O compression=lz4 -O sync=disabled -m none \
+          zroot "/dev/${MD}"
+      fi
+      zpool list
+  - template: |
+      cd ansible-jails
+      make test-default
+  - instances: |
+      cd ansible-jails
+      make test-instances
+  - pkgbase: |
+      cd ansible-jails
+      make test-pkgbase
+  - tarball: |
+      cd ansible-jails
+      make test-tarball
