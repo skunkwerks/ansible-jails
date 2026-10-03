@@ -66,6 +66,16 @@
       readonly: off
   tags: jails, zfs
 
+# otherwise the role silently writes into the directory underneath
+- name: verify instance dataset is mounted at {{ instance_dir }}
+  ansible.builtin.command:
+    cmd: /sbin/zfs get -H -o value mounted,mountpoint {{ instance_zfs }}
+  register: instance_mount
+  changed_when: false
+  check_mode: false
+  failed_when: instance_mount.stdout_lines != ['yes', instance_dir]
+  tags: jails, zfs
+
 - name: set hostname in rc.conf
   lineinfile:
     path: '{{ instance_etc }}/rc.conf'
@@ -170,6 +180,16 @@
     dest: '{{ jails_mount }}/tags/{{ instance.name }}'
     state: link
     force: true
+
+# templates built by older role versions lack this directory
+- name: create ansible local facts dir
+  file:
+    path: '{{ instance_facts }}'
+    state: directory
+    mode: 0750
+    owner: root
+    group: wheel
+  tags: jails, instance, facts
 
 - name: inject instance facts
   copy:
