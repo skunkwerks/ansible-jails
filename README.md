@@ -37,6 +37,7 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
+- 2.3.1: enforce no trailing whitespace incl newlines in ip addresses
 - 2.3.0: add base system packages
 - 2.2.2: fix idempotence when re-running the role
   - only report jail_list changes when a jail is newly added

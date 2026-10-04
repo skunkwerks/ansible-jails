@@ -3,10 +3,11 @@
 - name: check every jail address has an interface
   assert:
     that:
-      - item.addr is match("^[^|]+\\|[^|]+$")
+      # \Z not $, as $ also matches before a trailing newline
+      - item.addr is match("^[^|\\s]+\\|[^|\\s]+\\Z")
     fail_msg: >
-      jail {{ item.name }} address '{{ item.addr }}' must be in the form
-      interface|address, e.g. vtnet0|192.0.2.1/24
+      jail {{ item.name }} address {{ item.addr | to_json }} must be in the form
+      interface|address with no whitespace, e.g. vtnet0|192.0.2.1/24
     quiet: true
   loop: "{{ jails_check_addrs }}"
   vars:
