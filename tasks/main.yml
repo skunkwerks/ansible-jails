@@ -11,7 +11,10 @@
   args:
     apply:
       tags:
+        - jails
         - instance
   when: (jails_list | count() > 0)
+  # the include itself must match --tags, apply only tags the included tasks
+  tags: jails, instance
 # final refresh of facts
 - include_tasks: final.yml

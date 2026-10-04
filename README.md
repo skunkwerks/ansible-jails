@@ -37,7 +37,11 @@ versus being able to deploy jails in parallel, across different plays.
 History
 -------
 
-- 2.3.1: enforce no trailing whitespace incl newlines in ip addresses
+- 2.4.0: minor clean-ups mostly for IPv6 handling
+    - enforce no trailing whitespace incl newlines in addresses
+    - use ansible subnet module instead of lazy ipv6 string truncation
+    - quote all strings in templates as ansible is confused by ::
+    - allow tagging instance directly via `--tag instance` in plays
 - 2.3.0: add base system packages
 - 2.2.2: fix idempotence when re-running the role
   - only report jail_list changes when a jail is newly added
